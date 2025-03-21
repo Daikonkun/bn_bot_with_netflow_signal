@@ -252,9 +252,9 @@ class Backtester:
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 12), gridspec_kw={'height_ratios': [2, 1, 1]})
         
         # Plot price and MA
-        ax1.plot(df.index, df['close'], label='Price', alpha=0.8)
-        ax1.plot(df.index, df['MA7'], label='MA7', alpha=0.6)
-        ax1.plot(df.index, df['MA25'], label='MA25', alpha=0.6)
+        ax1.plot(df['timestamp'], df['close'], label='Price', alpha=0.8)
+        ax1.plot(df['timestamp'], df['MA7'], label='MA7', alpha=0.6)
+        ax1.plot(df['timestamp'], df['MA25'], label='MA25', alpha=0.6)
         
         # Plot entry/exit points
         for trade in trades:
@@ -270,7 +270,7 @@ class Backtester:
         ax1.grid(True, alpha=0.2)
         
         # Plot RSI
-        ax2.plot(df.index, df['RSI'], label='RSI', color='purple', alpha=0.8)
+        ax2.plot(df['timestamp'], df['RSI'], label='RSI', color='purple', alpha=0.8)
         ax2.axhline(y=70, color='r', linestyle='--', alpha=0.3)
         ax2.axhline(y=30, color='g', linestyle='--', alpha=0.3)
         ax2.set_title('RSI')
@@ -284,11 +284,16 @@ class Backtester:
             current_balance += trade['pnl']
             cumulative_returns.append(current_balance)
         
-        trade_times = [df.index[0]] + [trade['exit_time'] for trade in trades]
+        trade_times = [df['timestamp'].iloc[0]] + [trade['exit_time'] for trade in trades]
         ax3.plot(trade_times, cumulative_returns, label='Portfolio Value', color='cyan')
         ax3.set_title('Portfolio Value')
         ax3.legend()
         ax3.grid(True, alpha=0.2)
+        
+        # Format x-axis to show dates
+        for ax in [ax1, ax2, ax3]:
+            ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d %H:%M'))
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
         
         plt.tight_layout()
         plt.show()
