@@ -28,6 +28,15 @@ class Backtester:
         self.flow_5m_threshold = 1000000  # $1M
         self.flow_1h_threshold = 5000000  # $5M
         
+        # Risk parameters
+        self.leverage = 25
+        self.risk_percentage = 0.50  # 50% of capital per trade
+        self.tp_percentage = 0.05    # 5% take profit
+        self.sl_percentage = -0.10   # -10% stop loss
+        
+        self.positions = []
+        self.current_position = None
+        
         # Performance metrics
         self.metrics = {
             'total_trades': 0,
@@ -125,119 +134,161 @@ class Backtester:
         
         return df
     
-    def execute_trades(self, df):
-        """Execute trades based on signals"""
-        position = None
-        entry_price = 0
-        trades = []
-        
-        for i in range(len(df)):
-            signal = df['Signal'].iloc[i]
-            current_price = df['close'].iloc[i]
+    def calculate_position_size(self, entry_price):
+        """Calculate position size based on risk parameters"""
+        position_value = self.balance * self.risk_percentage
+        contract_qty = (position_value * self.leverage) / entry_price
+        return contract_qty
+
+    def execute_trade(self, row, signal):
+        """Execute trade with position sizing and risk management"""
+        if signal != 0 and self.current_position is None:  # Open new position
+            entry_price = row['close']
+            position_size = self.calculate_position_size(entry_price)
             
-            # Open positions
-            if signal == 'BUY' and position is None:
-                position = 'LONG'
-                entry_price = current_price
-                trades.append({
-                    'entry_time': df['timestamp'].iloc[i],
+            tp_price = entry_price * (1 + self.tp_percentage) if signal == 1 else entry_price * (1 - self.tp_percentage)
+            sl_price = entry_price * (1 + self.sl_percentage) if signal == 1 else entry_price * (1 - self.sl_percentage)
+            
+            self.current_position = {
+                'type': 'long' if signal == 1 else 'short',
+                'entry_price': entry_price,
+                'entry_time': row.name,
+                'size': position_size,
+                'tp_price': tp_price,
+                'sl_price': sl_price
+            }
+            
+        elif self.current_position is not None:  # Check for exit conditions
+            current_price = row['close']
+            position_type = self.current_position['type']
+            entry_price = self.current_position['entry_price']
+            position_size = self.current_position['size']
+            
+            # Calculate P&L
+            if position_type == 'long':
+                price_change = (current_price - entry_price) / entry_price
+            else:  # short
+                price_change = (entry_price - current_price) / entry_price
+                
+            pnl = position_size * entry_price * price_change * self.leverage
+            
+            # Check if TP or SL hit
+            exit_signal = False
+            exit_reason = ''
+            
+            if position_type == 'long':
+                if current_price >= self.current_position['tp_price']:
+                    exit_signal = True
+                    exit_reason = 'tp'
+                elif current_price <= self.current_position['sl_price']:
+                    exit_signal = True
+                    exit_reason = 'sl'
+            else:  # short
+                if current_price <= self.current_position['tp_price']:
+                    exit_signal = True
+                    exit_reason = 'tp'
+                elif current_price >= self.current_position['sl_price']:
+                    exit_signal = True
+                    exit_reason = 'sl'
+            
+            if exit_signal:
+                trade = {
+                    'entry_time': self.current_position['entry_time'],
+                    'exit_time': row.name,
+                    'type': position_type,
                     'entry_price': entry_price,
-                    'type': 'LONG'
-                })
-            
-            elif signal == 'SELL' and position is None:
-                position = 'SHORT'
-                entry_price = current_price
-                trades.append({
-                    'entry_time': df['timestamp'].iloc[i],
-                    'entry_price': entry_price,
-                    'type': 'SHORT'
-                })
-            
-            # Close positions on opposite signals
-            elif signal == 'SELL' and position == 'LONG':
-                pnl = (current_price - entry_price) / entry_price * 100
-                trades[-1].update({
-                    'exit_time': df['timestamp'].iloc[i],
                     'exit_price': current_price,
-                    'pnl': pnl
-                })
-                position = None
-            
-            elif signal == 'BUY' and position == 'SHORT':
-                pnl = (entry_price - current_price) / entry_price * 100
-                trades[-1].update({
-                    'exit_time': df['timestamp'].iloc[i],
-                    'exit_price': current_price,
-                    'pnl': pnl
-                })
-                position = None
-        
-        return trades
+                    'size': position_size,
+                    'pnl': pnl,
+                    'exit_reason': exit_reason
+                }
+                self.trades.append(trade)
+                self.balance += pnl
+                self.current_position = None
     
     def calculate_metrics(self, trades):
         """Calculate performance metrics"""
         if not trades:
-            return self.metrics
-            
-        # Calculate basic metrics
-        self.metrics['total_trades'] = len(trades)
+            return {}
         
-        # Calculate P&L metrics
-        winning_trades = [t for t in trades if t.get('pnl', 0) > 0]
-        losing_trades = [t for t in trades if t.get('pnl', 0) <= 0]
+        total_trades = len(trades)
+        profitable_trades = len([t for t in trades if t['pnl'] > 0])
+        win_rate = profitable_trades / total_trades if total_trades > 0 else 0
         
-        self.metrics['winning_trades'] = len(winning_trades)
-        self.metrics['losing_trades'] = len(losing_trades)
-        self.metrics['win_rate'] = len(winning_trades) / len(trades) * 100
+        total_profit = sum(t['pnl'] for t in trades)
+        profit_percentage = (total_profit / self.initial_balance) * 100
         
-        if winning_trades:
-            self.metrics['avg_win'] = np.mean([t['pnl'] for t in winning_trades])
-        if losing_trades:
-            self.metrics['avg_loss'] = np.mean([t['pnl'] for t in losing_trades])
-            
-        # Calculate cumulative returns and drawdown
-        cumulative_returns = np.cumsum([t.get('pnl', 0) for t in trades])
-        peak = np.maximum.accumulate(cumulative_returns)
-        drawdown = (peak - cumulative_returns)
-        self.metrics['max_drawdown'] = np.max(drawdown)
-        self.metrics['total_return'] = cumulative_returns[-1]
+        max_drawdown = 0
+        peak = self.initial_balance
+        for trade in trades:
+            capital_after_trade = peak + trade['pnl']
+            drawdown = (peak - capital_after_trade) / peak * 100
+            max_drawdown = min(max_drawdown, -drawdown)
+            peak = max(peak, capital_after_trade)
         
-        # Calculate profit factor
-        total_gains = sum([t['pnl'] for t in winning_trades])
-        total_losses = abs(sum([t['pnl'] for t in losing_trades]))
-        self.metrics['profit_factor'] = total_gains / total_losses if total_losses != 0 else float('inf')
+        avg_profit = sum(t['pnl'] for t in trades if t['pnl'] > 0) / profitable_trades if profitable_trades > 0 else 0
+        avg_loss = sum(t['pnl'] for t in trades if t['pnl'] <= 0) / (total_trades - profitable_trades) if (total_trades - profitable_trades) > 0 else 0
         
-        return self.metrics
+        tp_hits = len([t for t in trades if t['exit_reason'] == 'tp'])
+        sl_hits = len([t for t in trades if t['exit_reason'] == 'sl'])
+        
+        return {
+            'Total Trades': total_trades,
+            'Win Rate': f"{win_rate:.2%}",
+            'Total Return': f"{profit_percentage:.2f}%",
+            'Max Drawdown': f"{max_drawdown:.2f}%",
+            'Average Profit': f"${avg_profit:.2f}",
+            'Average Loss': f"${avg_loss:.2f}",
+            'TP Hits': tp_hits,
+            'SL Hits': sl_hits,
+            'Final Capital': f"${self.balance:.2f}",
+            'Leverage Used': f"{self.leverage}x",
+            'Risk Per Trade': f"{self.risk_percentage:.0%}"
+        }
     
     def plot_results(self, df, trades):
-        """Plot price action, indicators, and trades"""
-        plt.figure(figsize=(15, 10))
+        """Plot backtest results"""
+        plt.style.use('dark_background')
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 12), gridspec_kw={'height_ratios': [2, 1, 1]})
         
-        # Plot price and MAs
-        plt.subplot(2, 1, 1)
-        plt.plot(df['timestamp'], df['close'], label='Price', alpha=0.7)
-        plt.plot(df['timestamp'], df['MA7'], label='MA7', alpha=0.7)
-        plt.plot(df['timestamp'], df['MA25'], label='MA25', alpha=0.7)
+        # Plot price and MA
+        ax1.plot(df.index, df['close'], label='Price', alpha=0.8)
+        ax1.plot(df.index, df['MA7'], label='MA7', alpha=0.6)
+        ax1.plot(df.index, df['MA25'], label='MA25', alpha=0.6)
         
-        # Plot trades
+        # Plot entry/exit points
         for trade in trades:
-            if trade.get('exit_time'):
-                color = 'g' if trade.get('pnl', 0) > 0 else 'r'
-                plt.plot([trade['entry_time'], trade['exit_time']], 
-                        [trade['entry_price'], trade['exit_price']], 
-                        color=color, linewidth=2, alpha=0.7)
+            if trade['type'] == 'long':
+                ax1.scatter(trade['entry_time'], trade['entry_price'], color='g', marker='^', s=100)
+                ax1.scatter(trade['exit_time'], trade['exit_price'], color='r', marker='v', s=100)
+            else:
+                ax1.scatter(trade['entry_time'], trade['entry_price'], color='r', marker='v', s=100)
+                ax1.scatter(trade['exit_time'], trade['exit_price'], color='g', marker='^', s=100)
         
-        plt.title('Price Action and Trades')
-        plt.legend()
+        ax1.set_title(f'Backtest Results - {self.symbol} ({self.leverage}x Leverage)')
+        ax1.legend()
+        ax1.grid(True, alpha=0.2)
         
         # Plot RSI
-        plt.subplot(2, 1, 2)
-        plt.plot(df['timestamp'], df['RSI'], label='RSI', color='purple', alpha=0.7)
-        plt.axhline(y=self.rsi_oversold, color='g', linestyle='--', alpha=0.5)
-        plt.axhline(y=self.rsi_overbought, color='r', linestyle='--', alpha=0.5)
-        plt.title('RSI')
-        plt.legend()
+        ax2.plot(df.index, df['RSI'], label='RSI', color='purple', alpha=0.8)
+        ax2.axhline(y=70, color='r', linestyle='--', alpha=0.3)
+        ax2.axhline(y=30, color='g', linestyle='--', alpha=0.3)
+        ax2.set_title('RSI')
+        ax2.legend()
+        ax2.grid(True, alpha=0.2)
+        
+        # Plot cumulative returns
+        cumulative_returns = [self.initial_balance]
+        current_balance = self.initial_balance
+        for trade in trades:
+            current_balance += trade['pnl']
+            cumulative_returns.append(current_balance)
+        
+        trade_times = [df.index[0]] + [trade['exit_time'] for trade in trades]
+        ax3.plot(trade_times, cumulative_returns, label='Portfolio Value', color='cyan')
+        ax3.set_title('Portfolio Value')
+        ax3.legend()
+        ax3.grid(True, alpha=0.2)
         
         plt.tight_layout()
         plt.show()
@@ -257,24 +308,21 @@ class Backtester:
         df = self.generate_signals(df, coinglass_df)
         
         print("Executing trades...")
-        trades = self.execute_trades(df)
+        for i in range(len(df)):
+            signal = df['Signal'].iloc[i]
+            self.execute_trade(df.iloc[i], signal)
         
         print("Calculating metrics...")
-        metrics = self.calculate_metrics(trades)
+        metrics = self.calculate_metrics(self.trades)
         
         print("\nBacktest Results:")
-        print(f"Total Trades: {metrics['total_trades']}")
-        print(f"Win Rate: {metrics['win_rate']:.2f}%")
-        print(f"Average Win: {metrics['avg_win']:.2f}%")
-        print(f"Average Loss: {metrics['avg_loss']:.2f}%")
-        print(f"Profit Factor: {metrics['profit_factor']:.2f}")
-        print(f"Max Drawdown: {metrics['max_drawdown']:.2f}%")
-        print(f"Total Return: {metrics['total_return']:.2f}%")
+        for metric, value in metrics.items():
+            print(f"{metric}: {value}")
         
         print("\nPlotting results...")
-        self.plot_results(df, trades)
+        self.plot_results(df, self.trades)
         
-        return df, trades, metrics
+        return df, self.trades, metrics
 
 def main():
     # Load environment variables
