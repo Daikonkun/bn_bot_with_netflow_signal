@@ -604,7 +604,10 @@ class TradingGUI:
                     symbol = position['symbol']
                     entry_price = float(position.get('entryPrice', 0))
                     mark_price = float(position.get('markPrice', 0))
-                    leverage = position.get('leverage', '1')
+                    
+                    # Get leverage directly from position info
+                    leverage = int(float(position.get('leverage', 25)))  # Default to 25 if not found
+                    
                     unrealized_pnl = float(position.get('unRealizedProfit', 0))
                     
                     # Find SL/TP orders for this position
@@ -617,25 +620,25 @@ class TradingGUI:
                     sl_price = float(sl_order['stopPrice']) if sl_order else 0
                     tp_price = float(tp_order['stopPrice']) if tp_order else 0
                     
-                    sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
-                    tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
+                    # Calculate percentages based on position direction
+                    if pos_amt > 0:  # Long position
+                        sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
+                        tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
+                    else:  # Short position
+                        sl_percent = ((entry_price - sl_price) / entry_price * 100) if sl_price else 0
+                        tp_percent = ((entry_price - tp_price) / entry_price * 100) if tp_price else 0
                     
-                    # If position is short, invert the percentages
-                    if pos_amt < 0:
-                        sl_percent = -sl_percent
-                        tp_percent = -tp_percent
-                    
-                    # Calculate PNL percentage based on position size and entry price
-                    position_value = abs(pos_amt * entry_price)
-                    pnl_percentage = (unrealized_pnl / position_value * 100) if position_value != 0 else 0
+                    # Format display strings
+                    sl_display = f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else "N/A"
+                    tp_display = f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price else "N/A"
                     
                     self.positions_tree.insert('', 'end', values=(
                         symbol,
                         f"{pos_amt:.4f}",
                         f"{entry_price:.2f}",
                         f"{leverage}x",
-                        f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else "N/A",
-                        f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price else "N/A",
+                        sl_display,
+                        tp_display,
                         "Edit",
                         "Close"
                     ))

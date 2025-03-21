@@ -1,0 +1,358 @@
+2025-03-21 15:20:26,249 - INFO - 爬虫启动
+2025-03-21 15:20:26,249 - INFO - Script started
+2025-03-21 15:20:26,249 - INFO - Starting data fetch...
+2025-03-21 15:20:28,938 - INFO - Page loaded, waiting for data...
+2025-03-21 15:20:33,963 - INFO - Timestamp captured: 21 Mar 2025, 15:20
+2025-03-21 15:20:33,981 - INFO - Raw data captured: BTC
+-$6.80M
+-$11.42M
+-$10.70M
+-$30.61M
+-$57.00M
+-$75.29M
+-$80.01M
+-$65.59M
+-$74.32M
+-$179.85M
+-$222.46M
+$948.10M
+-$2.08B
+$1.67T
+2025-03-21 15:20:33,982 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:20', 'netflow': 'BTC', 'data': 'BTC\n-$6.80M\n-$11.42M\n-$10.70M\n-$30.61M\n-$57.00M\n-$75.29M\n-$80.01M\n-$65.59M\n-$74.32M\n-$179.85M\n-$222.46M\n$948.10M\n-$2.08B\n$1.67T'}
+2025-03-21 15:20:36,104 - INFO - Browser closed successfully
+2025-03-21 15:20:36,104 - INFO - Successfully fetched data: {'timestamp': '21 Mar 2025, 15:20', 'netflow': 'BTC', 'data': 'BTC\n-$6.80M\n-$11.42M\n-$10.70M\n-$30.61M\n-$57.00M\n-$75.29M\n-$80.01M\n-$65.59M\n-$74.32M\n-$179.85M\n-$222.46M\n$948.10M\n-$2.08B\n$1.67T'}
+2025-03-21 15:20:36,105 - INFO - Data saved to CSV: 21 Mar 2025, 15:20, 14 values
+2025-03-21 15:20:36,105 - INFO - Script completed
+2025-03-21 15:22:04,400 - INFO - 爬虫启动
+2025-03-21 15:22:04,400 - INFO - Script started
+2025-03-21 15:22:04,400 - INFO - Starting data fetch...
+2025-03-21 15:22:04,432 - INFO - ====== WebDriver manager ======
+2025-03-21 15:22:05,243 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:22:05,569 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:22:05,756 - INFO - There is no [win64] chromedriver "134.0.6998.90" for browser google-chrome "134.0.6998" in cache
+2025-03-21 15:22:05,756 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:22:06,198 - INFO - WebDriver version 134.0.6998.90 selected
+2025-03-21 15:22:06,200 - INFO - Modern chrome version https://storage.googleapis.com/chrome-for-testing-public/134.0.6998.90/win32/chromedriver-win32.zip
+2025-03-21 15:22:06,200 - INFO - About to download new driver from https://storage.googleapis.com/chrome-for-testing-public/134.0.6998.90/win32/chromedriver-win32.zip
+2025-03-21 15:22:06,246 - INFO - Driver downloading response is 200
+2025-03-21 15:22:06,334 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:22:06,640 - INFO - Driver has been saved in cache [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90]
+2025-03-21 15:22:09,372 - INFO - Page loaded, waiting for data...
+2025-03-21 15:22:14,385 - INFO - Timestamp captured: 21 Mar 2025, 15:22
+2025-03-21 15:22:14,403 - INFO - Raw data captured: BTC
+-$4.27M
+-$11.71M
+-$8.78M
+-$31.10M
+-$66.59M
+-$84.87M
+-$85.65M
+-$65.59M
+-$81.20M
+-$191.14M
+-$360.42M
+$343.21M
+-$2.57B
+$1.67T
+2025-03-21 15:22:14,403 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:22', 'netflow': 'BTC', 'data': 'BTC\n-$4.27M\n-$11.71M\n-$8.78M\n-$31.10M\n-$66.59M\n-$84.87M\n-$85.65M\n-$65.59M\n-$81.20M\n-$191.14M\n-$360.42M\n$343.21M\n-$2.57B\n$1.67T'}
+2025-03-21 15:22:16,527 - INFO - Browser closed successfully
+2025-03-21 15:22:20,624 - INFO - Successfully fetched data: {'timestamp': '21 Mar 2025, 15:22', 'netflow': 'BTC', 'data': 'BTC\n-$4.27M\n-$11.71M\n-$8.78M\n-$31.10M\n-$66.59M\n-$84.87M\n-$85.65M\n-$65.59M\n-$81.20M\n-$191.14M\n-$360.42M\n$343.21M\n-$2.57B\n$1.67T'}
+2025-03-21 15:22:20,624 - INFO - Data saved to CSV: 21 Mar 2025, 15:22, 14 values
+2025-03-21 15:22:20,625 - INFO - Script completed
+2025-03-21 15:27:04,437 - INFO - 定时任务触发
+2025-03-21 15:27:04,437 - INFO - Starting data fetch...
+2025-03-21 15:27:04,468 - INFO - ====== WebDriver manager ======
+2025-03-21 15:27:05,273 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:27:05,462 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:27:05,650 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:27:08,268 - INFO - Page loaded, waiting for data...
+2025-03-21 15:27:13,282 - INFO - Timestamp captured: 21 Mar 2025, 15:27
+2025-03-21 15:27:13,301 - INFO - Raw data captured: BTC
+-$222.94K
+-$9.91M
+-$10.24M
+-$24.47M
+-$66.19M
+-$85.44M
+-$83.49M
+-$65.59M
+-$76.51M
+-$190.88M
+-$361.22M
+$347.35M
+-$2.56B
+$1.67T
+2025-03-21 15:27:13,302 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:27', 'netflow': 'BTC', 'data': 'BTC\n-$222.94K\n-$9.91M\n-$10.24M\n-$24.47M\n-$66.19M\n-$85.44M\n-$83.49M\n-$65.59M\n-$76.51M\n-$190.88M\n-$361.22M\n$347.35M\n-$2.56B\n$1.67T'}
+2025-03-21 15:27:15,417 - INFO - Browser closed successfully
+2025-03-21 15:27:19,508 - INFO - Data saved to CSV: 21 Mar 2025, 15:27, 14 values
+2025-03-21 15:27:19,509 - INFO - 成功保存数据: 21 Mar 2025, 15:27
+2025-03-21 15:32:20,206 - INFO - 定时任务触发
+2025-03-21 15:32:20,206 - INFO - Starting data fetch...
+2025-03-21 15:32:20,236 - INFO - ====== WebDriver manager ======
+2025-03-21 15:32:21,019 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:32:21,196 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:32:21,383 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:32:23,733 - INFO - Page loaded, waiting for data...
+2025-03-21 15:32:28,746 - INFO - Timestamp captured: 21 Mar 2025, 15:32
+2025-03-21 15:32:28,764 - INFO - Raw data captured: BTC
+-$895.28K
+-$5.33M
+-$13.98M
+-$19.51M
+-$64.23M
+-$82.01M
+-$84.44M
+-$65.59M
+-$72.69M
+-$195.20M
+-$217.67M
+$960.48M
+-$2.10B
+$1.67T
+2025-03-21 15:32:28,765 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:32', 'netflow': 'BTC', 'data': 'BTC\n-$895.28K\n-$5.33M\n-$13.98M\n-$19.51M\n-$64.23M\n-$82.01M\n-$84.44M\n-$65.59M\n-$72.69M\n-$195.20M\n-$217.67M\n$960.48M\n-$2.10B\n$1.67T'}
+2025-03-21 15:32:30,887 - INFO - Browser closed successfully
+2025-03-21 15:32:34,990 - INFO - Data saved to CSV: 21 Mar 2025, 15:32, 14 values
+2025-03-21 15:32:34,990 - INFO - 成功保存数据: 21 Mar 2025, 15:32
+2025-03-21 15:37:35,957 - INFO - 定时任务触发
+2025-03-21 15:37:35,957 - INFO - Starting data fetch...
+2025-03-21 15:37:35,988 - INFO - ====== WebDriver manager ======
+2025-03-21 15:37:36,729 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:37:36,921 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:37:37,097 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:37:39,453 - INFO - Page loaded, waiting for data...
+2025-03-21 15:37:44,463 - INFO - Timestamp captured: 21 Mar 2025, 15:37
+2025-03-21 15:37:44,480 - INFO - Raw data captured: BTC
+-$2.61M
+-$4.09M
+-$16.82M
+-$19.61M
+-$67.61M
+-$84.26M
+-$89.92M
+-$65.59M
+-$79.81M
+-$194.86M
+-$365.77M
+$344.83M
+-$2.58B
+$1.67T
+2025-03-21 15:37:44,481 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:37', 'netflow': 'BTC', 'data': 'BTC\n-$2.61M\n-$4.09M\n-$16.82M\n-$19.61M\n-$67.61M\n-$84.26M\n-$89.92M\n-$65.59M\n-$79.81M\n-$194.86M\n-$365.77M\n$344.83M\n-$2.58B\n$1.67T'}
+2025-03-21 15:37:46,596 - INFO - Browser closed successfully
+2025-03-21 15:37:50,688 - INFO - Data saved to CSV: 21 Mar 2025, 15:37, 14 values
+2025-03-21 15:37:50,688 - INFO - 成功保存数据: 21 Mar 2025, 15:37
+2025-03-21 15:42:50,866 - INFO - 定时任务触发
+2025-03-21 15:42:50,866 - INFO - Starting data fetch...
+2025-03-21 15:42:50,895 - INFO - ====== WebDriver manager ======
+2025-03-21 15:42:51,629 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:42:51,806 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:42:51,983 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:42:53,957 - INFO - Page loaded, waiting for data...
+2025-03-21 15:42:58,976 - INFO - Timestamp captured: 21 Mar 2025, 15:42
+2025-03-21 15:42:58,994 - INFO - Raw data captured: BTC
+-$5.23M
+-$9.26M
+-$18.88M
+-$21.55M
+-$71.76M
+-$89.27M
+-$96.69M
+-$65.59M
+-$85.28M
+-$199.17M
+-$373.09M
+$348.48M
+-$2.58B
+$1.66T
+2025-03-21 15:42:58,995 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:42', 'netflow': 'BTC', 'data': 'BTC\n-$5.23M\n-$9.26M\n-$18.88M\n-$21.55M\n-$71.76M\n-$89.27M\n-$96.69M\n-$65.59M\n-$85.28M\n-$199.17M\n-$373.09M\n$348.48M\n-$2.58B\n$1.66T'}
+2025-03-21 15:43:01,093 - INFO - Browser closed successfully
+2025-03-21 15:43:05,186 - INFO - Data saved to CSV: 21 Mar 2025, 15:42, 14 values
+2025-03-21 15:43:05,187 - INFO - 成功保存数据: 21 Mar 2025, 15:42
+2025-03-21 15:48:05,346 - INFO - 定时任务触发
+2025-03-21 15:48:05,346 - INFO - Starting data fetch...
+2025-03-21 15:48:05,376 - INFO - ====== WebDriver manager ======
+2025-03-21 15:48:06,117 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:48:06,302 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:48:06,479 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:48:08,617 - INFO - Page loaded, waiting for data...
+2025-03-21 15:48:13,630 - INFO - Timestamp captured: 21 Mar 2025, 15:48
+2025-03-21 15:48:13,648 - INFO - Raw data captured: BTC
+-$5.67M
+-$14.21M
+-$17.56M
+-$30.63M
+-$75.98M
+-$97.20M
+-$107.85M
+-$65.59M
+-$98.97M
+-$241.85M
+-$407.98M
+$371.58M
+-$2.66B
+$1.66T
+2025-03-21 15:48:13,649 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:48', 'netflow': 'BTC', 'data': 'BTC\n-$5.67M\n-$14.21M\n-$17.56M\n-$30.63M\n-$75.98M\n-$97.20M\n-$107.85M\n-$65.59M\n-$98.97M\n-$241.85M\n-$407.98M\n$371.58M\n-$2.66B\n$1.66T'}
+2025-03-21 15:48:15,767 - INFO - Browser closed successfully
+2025-03-21 15:48:19,869 - INFO - Data saved to CSV: 21 Mar 2025, 15:48, 14 values
+2025-03-21 15:48:19,870 - INFO - 成功保存数据: 21 Mar 2025, 15:48
+2025-03-21 15:53:20,163 - INFO - 定时任务触发
+2025-03-21 15:53:20,163 - INFO - Starting data fetch...
+2025-03-21 15:53:20,193 - INFO - ====== WebDriver manager ======
+2025-03-21 15:53:20,933 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:53:21,121 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:53:21,314 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:53:23,417 - INFO - Page loaded, waiting for data...
+2025-03-21 15:53:28,430 - INFO - Timestamp captured: 21 Mar 2025, 15:53
+2025-03-21 15:53:28,448 - INFO - Raw data captured: BTC
+$3.00M
+-$9.78M
+-$15.30M
+-$23.13M
+-$71.27M
+-$92.30M
+-$108.21M
+-$65.59M
+-$90.52M
+-$204.18M
+-$379.76M
+$353.52M
+-$2.61B
+$1.66T
+2025-03-21 15:53:28,449 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:53', 'netflow': 'BTC', 'data': 'BTC\n$3.00M\n-$9.78M\n-$15.30M\n-$23.13M\n-$71.27M\n-$92.30M\n-$108.21M\n-$65.59M\n-$90.52M\n-$204.18M\n-$379.76M\n$353.52M\n-$2.61B\n$1.66T'}
+2025-03-21 15:53:30,541 - INFO - Browser closed successfully
+2025-03-21 15:53:34,639 - INFO - Data saved to CSV: 21 Mar 2025, 15:53, 14 values
+2025-03-21 15:53:34,640 - INFO - 成功保存数据: 21 Mar 2025, 15:53
+2025-03-21 15:58:34,849 - INFO - 定时任务触发
+2025-03-21 15:58:34,849 - INFO - Starting data fetch...
+2025-03-21 15:58:34,879 - INFO - ====== WebDriver manager ======
+2025-03-21 15:58:35,619 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:58:35,804 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 15:58:35,991 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 15:58:38,839 - INFO - Page loaded, waiting for data...
+2025-03-21 15:58:43,862 - INFO - Timestamp captured: 21 Mar 2025, 15:58
+2025-03-21 15:58:43,882 - INFO - Raw data captured: BTC
+-$289.02K
+-$4.57M
+-$14.09M
+-$24.37M
+-$70.39M
+-$92.30M
+-$110.87M
+-$65.59M
+-$87.03M
+-$206.91M
+-$388.34M
+$347.68M
+-$2.59B
+$1.66T
+2025-03-21 15:58:43,883 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 15:58', 'netflow': 'BTC', 'data': 'BTC\n-$289.02K\n-$4.57M\n-$14.09M\n-$24.37M\n-$70.39M\n-$92.30M\n-$110.87M\n-$65.59M\n-$87.03M\n-$206.91M\n-$388.34M\n$347.68M\n-$2.59B\n$1.66T'}
+2025-03-21 15:58:46,011 - INFO - Browser closed successfully
+2025-03-21 15:58:50,097 - INFO - Data saved to CSV: 21 Mar 2025, 15:58, 14 values
+2025-03-21 15:58:50,097 - INFO - 成功保存数据: 21 Mar 2025, 15:58
+2025-03-21 16:03:50,205 - INFO - 定时任务触发
+2025-03-21 16:03:50,205 - INFO - Starting data fetch...
+2025-03-21 16:03:50,236 - INFO - ====== WebDriver manager ======
+2025-03-21 16:03:51,029 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:03:51,208 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:03:51,401 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 16:03:53,972 - INFO - Page loaded, waiting for data...
+2025-03-21 16:03:58,996 - INFO - Timestamp captured: 21 Mar 2025, 16:03
+2025-03-21 16:03:59,013 - INFO - Raw data captured: BTC
+$1.34M
+$1.92M
+-$11.15M
+-$26.10M
+-$69.47M
+-$92.64M
+-$114.58M
+-$94.46M
+-$82.45M
+-$206.42M
+-$334.77M
+$358.20M
+-$2.62B
+$1.66T
+2025-03-21 16:03:59,015 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 16:03', 'netflow': 'BTC', 'data': 'BTC\n$1.34M\n$1.92M\n-$11.15M\n-$26.10M\n-$69.47M\n-$92.64M\n-$114.58M\n-$94.46M\n-$82.45M\n-$206.42M\n-$334.77M\n$358.20M\n-$2.62B\n$1.66T'}
+2025-03-21 16:04:01,134 - INFO - Browser closed successfully
+2025-03-21 16:04:05,199 - INFO - Data saved to CSV: 21 Mar 2025, 16:03, 14 values
+2025-03-21 16:04:05,200 - INFO - 成功保存数据: 21 Mar 2025, 16:03
+2025-03-21 16:09:05,998 - INFO - 定时任务触发
+2025-03-21 16:09:05,998 - INFO - Starting data fetch...
+2025-03-21 16:09:06,031 - INFO - ====== WebDriver manager ======
+2025-03-21 16:09:06,842 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:09:07,024 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:09:07,217 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 16:09:09,410 - INFO - Page loaded, waiting for data...
+2025-03-21 16:09:14,422 - INFO - Timestamp captured: 21 Mar 2025, 16:09
+2025-03-21 16:09:14,440 - INFO - Raw data captured: BTC
+$6.51M
+$8.00M
+-$1.94M
+-$15.58M
+-$53.04M
+-$85.29M
+-$106.18M
+-$91.68M
+-$76.00M
+-$197.56M
+-$328.19M
+$381.55M
+-$2.57B
+$1.67T
+2025-03-21 16:09:14,441 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 16:09', 'netflow': 'BTC', 'data': 'BTC\n$6.51M\n$8.00M\n-$1.94M\n-$15.58M\n-$53.04M\n-$85.29M\n-$106.18M\n-$91.68M\n-$76.00M\n-$197.56M\n-$328.19M\n$381.55M\n-$2.57B\n$1.67T'}
+2025-03-21 16:09:16,539 - INFO - Browser closed successfully
+2025-03-21 16:09:20,642 - INFO - Data saved to CSV: 21 Mar 2025, 16:09, 14 values
+2025-03-21 16:09:20,643 - INFO - 成功保存数据: 21 Mar 2025, 16:09
+2025-03-21 16:14:21,385 - INFO - 定时任务触发
+2025-03-21 16:14:21,386 - INFO - Starting data fetch...
+2025-03-21 16:14:21,418 - INFO - ====== WebDriver manager ======
+2025-03-21 16:14:22,188 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:14:22,366 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:14:22,543 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 16:14:25,452 - INFO - Page loaded, waiting for data...
+2025-03-21 16:14:30,467 - INFO - Timestamp captured: 21 Mar 2025, 16:14
+2025-03-21 16:14:30,485 - INFO - Raw data captured: BTC
+$335.48K
+$7.50M
+$2.99M
+-$15.84M
+-$51.71M
+-$85.08M
+-$106.01M
+-$93.64M
+-$77.82M
+-$197.60M
+-$321.62M
+$391.17M
+-$2.59B
+$1.67T
+2025-03-21 16:14:30,486 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 16:14', 'netflow': 'BTC', 'data': 'BTC\n$335.48K\n$7.50M\n$2.99M\n-$15.84M\n-$51.71M\n-$85.08M\n-$106.01M\n-$93.64M\n-$77.82M\n-$197.60M\n-$321.62M\n$391.17M\n-$2.59B\n$1.67T'}
+2025-03-21 16:14:32,608 - INFO - Browser closed successfully
+2025-03-21 16:14:36,706 - INFO - Data saved to CSV: 21 Mar 2025, 16:14, 14 values
+2025-03-21 16:14:36,707 - INFO - 成功保存数据: 21 Mar 2025, 16:14
+2025-03-21 16:19:37,601 - INFO - 定时任务触发
+2025-03-21 16:19:37,601 - INFO - Starting data fetch...
+2025-03-21 16:19:37,632 - INFO - ====== WebDriver manager ======
+2025-03-21 16:19:38,383 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:19:38,570 - INFO - Get LATEST chromedriver version for google-chrome
+2025-03-21 16:19:38,746 - INFO - Driver [C:\Users\Robert Luo\.wdm\drivers\chromedriver\win64\134.0.6998.90\chromedriver-win32/chromedriver.exe] found in cache
+2025-03-21 16:19:41,351 - INFO - Page loaded, waiting for data...
+2025-03-21 16:19:46,362 - INFO - Timestamp captured: 21 Mar 2025, 16:19
+2025-03-21 16:19:46,380 - INFO - Raw data captured: BTC
+-$2.48M
+$3.68M
+$8.14M
+-$10.35M
+-$41.54M
+-$84.59M
+-$106.27M
+-$95.18M
+-$81.72M
+-$202.65M
+-$347.47M
+$373.68M
+-$2.57B
+$1.67T
+2025-03-21 16:19:46,381 - INFO - Data extracted successfully: {'timestamp': '21 Mar 2025, 16:19', 'netflow': 'BTC', 'data': 'BTC\n-$2.48M\n$3.68M\n$8.14M\n-$10.35M\n-$41.54M\n-$84.59M\n-$106.27M\n-$95.18M\n-$81.72M\n-$202.65M\n-$347.47M\n$373.68M\n-$2.57B\n$1.67T'}
+2025-03-21 16:19:48,499 - INFO - Browser closed successfully
+2025-03-21 16:19:52,574 - INFO - Data saved to CSV: 21 Mar 2025, 16:19, 14 values
+2025-03-21 16:19:52,575 - INFO - 成功保存数据: 21 Mar 2025, 16:19
