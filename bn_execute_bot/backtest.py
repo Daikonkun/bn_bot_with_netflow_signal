@@ -99,7 +99,7 @@ class Backtester:
     
     def generate_signals(self, df, coinglass_df):
         """Generate trading signals based on strategy rules"""
-        df['Signal'] = 'NO SIGNAL'
+        df['Signal'] = 0  # 0 for no signal, 1 for buy, -1 for sell
         
         for i in range(len(df)):
             if i < self.ma_long:
@@ -112,9 +112,13 @@ class Backtester:
             # Get corresponding Coinglass data
             if coinglass_df is not None:
                 timestamp = df['timestamp'].iloc[i]
-                coinglass_data = coinglass_df[coinglass_df['Timestamp'] <= timestamp].iloc[0]
-                flow_5m = float(coinglass_data['5m'])
-                flow_1h = sum(coinglass_df[coinglass_df['Timestamp'] <= timestamp].head(12)['5m'])
+                coinglass_data = coinglass_df[coinglass_df['Timestamp'] <= timestamp].iloc[-1] if not coinglass_df[coinglass_df['Timestamp'] <= timestamp].empty else None
+                if coinglass_data is not None:
+                    flow_5m = float(coinglass_data['5m'])
+                    flow_1h = sum(coinglass_df[coinglass_df['Timestamp'] <= timestamp].head(12)['5m'])
+                else:
+                    flow_5m = 0
+                    flow_1h = 0
             else:
                 flow_5m = 0
                 flow_1h = 0
@@ -124,13 +128,13 @@ class Backtester:
                 if (df['RSI'].iloc[i] < self.rsi_oversold or 
                     flow_5m < -self.flow_5m_threshold or 
                     flow_1h < -self.flow_1h_threshold):
-                    df.loc[df.index[i], 'Signal'] = 'BUY'
+                    df.loc[df.index[i], 'Signal'] = 1  # Buy signal
             
             elif bearish_trend:
                 if (df['RSI'].iloc[i] > self.rsi_overbought or 
                     flow_5m > self.flow_5m_threshold or 
                     flow_1h > self.flow_1h_threshold):
-                    df.loc[df.index[i], 'Signal'] = 'SELL'
+                    df.loc[df.index[i], 'Signal'] = -1  # Sell signal
         
         return df
     
@@ -152,7 +156,7 @@ class Backtester:
             self.current_position = {
                 'type': 'long' if signal == 1 else 'short',
                 'entry_price': entry_price,
-                'entry_time': row.name,
+                'entry_time': row['timestamp'],  # Use timestamp from row
                 'size': position_size,
                 'tp_price': tp_price,
                 'sl_price': sl_price
@@ -194,7 +198,7 @@ class Backtester:
             if exit_signal:
                 trade = {
                     'entry_time': self.current_position['entry_time'],
-                    'exit_time': row.name,
+                    'exit_time': row['timestamp'],  # Use timestamp from row
                     'type': position_type,
                     'entry_price': entry_price,
                     'exit_price': current_price,
@@ -259,11 +263,11 @@ class Backtester:
         # Plot entry/exit points
         for trade in trades:
             if trade['type'] == 'long':
-                ax1.scatter(trade['entry_time'], trade['entry_price'], color='g', marker='^', s=100)
-                ax1.scatter(trade['exit_time'], trade['exit_price'], color='r', marker='v', s=100)
+                ax1.scatter(trade['entry_time'], trade['entry_price'], color='g', marker='^', s=100, label='Long Entry' if 'Long Entry' not in ax1.get_legend_handles_labels()[1] else '')
+                ax1.scatter(trade['exit_time'], trade['exit_price'], color='r', marker='v', s=100, label='Long Exit' if 'Long Exit' not in ax1.get_legend_handles_labels()[1] else '')
             else:
-                ax1.scatter(trade['entry_time'], trade['entry_price'], color='r', marker='v', s=100)
-                ax1.scatter(trade['exit_time'], trade['exit_price'], color='g', marker='^', s=100)
+                ax1.scatter(trade['entry_time'], trade['entry_price'], color='r', marker='v', s=100, label='Short Entry' if 'Short Entry' not in ax1.get_legend_handles_labels()[1] else '')
+                ax1.scatter(trade['exit_time'], trade['exit_price'], color='g', marker='^', s=100, label='Short Exit' if 'Short Exit' not in ax1.get_legend_handles_labels()[1] else '')
         
         ax1.set_title(f'Backtest Results - {self.symbol} ({self.leverage}x Leverage)')
         ax1.legend()
@@ -278,14 +282,16 @@ class Backtester:
         ax2.grid(True, alpha=0.2)
         
         # Plot cumulative returns
-        cumulative_returns = [self.initial_balance]
+        equity_curve = [self.initial_balance]
         current_balance = self.initial_balance
+        timestamps = [df['timestamp'].iloc[0]]
+        
         for trade in trades:
             current_balance += trade['pnl']
-            cumulative_returns.append(current_balance)
+            equity_curve.append(current_balance)
+            timestamps.append(trade['exit_time'])
         
-        trade_times = [df['timestamp'].iloc[0]] + [trade['exit_time'] for trade in trades]
-        ax3.plot(trade_times, cumulative_returns, label='Portfolio Value', color='cyan')
+        ax3.plot(timestamps, equity_curve, label='Portfolio Value', color='cyan')
         ax3.set_title('Portfolio Value')
         ax3.legend()
         ax3.grid(True, alpha=0.2)
@@ -294,6 +300,7 @@ class Backtester:
         for ax in [ax1, ax2, ax3]:
             ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d %H:%M'))
             plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+            ax.set_xlim(df['timestamp'].iloc[0], df['timestamp'].iloc[-1])  # Set x-axis limits to match data range
         
         plt.tight_layout()
         plt.show()

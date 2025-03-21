@@ -18,6 +18,7 @@ import random
 from datetime import datetime, timedelta
 from fake_useragent import UserAgent
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Configure logging
 logging.basicConfig(
@@ -56,7 +57,8 @@ def setup_driver():
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     
-    service = Service(r'C:\Users\Robert Luo\Downloads\chromedriver-win64\chromedriver-win64\chromedriver.exe')
+    # Use ChromeDriverManager to handle driver installation
+    service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     
     # Additional automation detection evasion

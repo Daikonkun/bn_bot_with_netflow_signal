@@ -14,10 +14,20 @@ class TradingGUI:
         self.root.title("Binance Futures Trading")
         self.root.geometry("1000x800")  # Keeping as 1000x800 per your preference
 
+        # Add update flags
+        self.is_updating_price = False
+        self.is_updating_positions = False
+        self.last_price_update = 0
+        self.last_position_update = 0
+        self.update_interval = 2000  # 2 seconds
+        self.position_update_interval = 5000  # 5 seconds
+        
         # Initialize log frame first
         self.create_log_frame()
 
-        self.strategy_file = "strategies.json"
+        # Get the script's directory
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.strategy_file = os.path.join(self.script_dir, "strategies.json")
         self.trade_configs = self.load_trade_configs()
         self.current_trade_params = {}
 
@@ -30,10 +40,10 @@ class TradingGUI:
         # Initialize signal history
         self.signal_history = []  # List to store (timestamp, signal) tuples
         
-        # Initialize Coinglass data
+        # Initialize Coinglass data with absolute path
         self.coinglass_data = None
         self.last_coinglass_update = None
-        self.coinglass_file = "../coinglass/btc_spot_netflow.csv"
+        self.coinglass_file = os.path.abspath(os.path.join(self.script_dir, "..", "coinglass", "btc_spot_netflow.csv"))
 
         # Create other frames
         self.create_trade_frame()
@@ -312,9 +322,16 @@ class TradingGUI:
 
     def log_message(self, message):
         self.log_text.config(state='normal')
+        # Add message to log
         self.log_text.insert(tk.END, f"{datetime.now()}: {message}\n")
+        # Keep only last 1000 lines to prevent memory bloat
+        num_lines = int(self.log_text.index('end-1c').split('.')[0])
+        if num_lines > 1000:
+            self.log_text.delete('1.0', f'{num_lines-1000}.0')
         self.log_text.config(state='disabled')
-        self.log_text.see(tk.END)
+        # Only auto-scroll if log frame is expanded
+        if self.log_frame_expanded:
+            self.log_text.see(tk.END)
 
     def load_trade_template(self, event=None):
         selected_trade = self.trade_var.get()
@@ -386,32 +403,35 @@ class TradingGUI:
             return None
 
     def load_coinglass_data(self):
-        """Load the latest Coinglass data from CSV file."""
-        try:
-            if not os.path.exists(self.coinglass_file):
-                self.log_message("Warning: Coinglass data file not found")
-                return None
-
-            # Check if file was modified since last read
-            last_modified = os.path.getmtime(self.coinglass_file)
-            if (self.last_coinglass_update is not None and 
-                last_modified <= self.last_coinglass_update):
-                return self.coinglass_data
-
-            # Read and process the data
-            df = pd.read_csv(self.coinglass_file)
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="%d %b %Y, %H:%M")
-            df = df.sort_values('Timestamp', ascending=False)
-            
-            self.coinglass_data = df.iloc[0]  # Get the latest row
-            self.last_coinglass_update = last_modified
+        """Load Coinglass data with rate limiting."""
+        current_time = time.time()
+        
+        # Only update every 5 seconds
+        if self.last_coinglass_update and current_time - self.last_coinglass_update < 5:
             return self.coinglass_data
+            
+        try:
+            if os.path.exists(self.coinglass_file):
+                df = pd.read_csv(self.coinglass_file)
+                df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="%d %b %Y, %H:%M")
+                latest_row = df.iloc[0]
+                self.coinglass_data = {
+                    '5m': latest_row['5min'],
+                    '15m': latest_row['15min'],
+                    '30m': latest_row['30min']
+                }
+                self.last_coinglass_update = current_time
+                return self.coinglass_data
+            return None
         except Exception as e:
-            self.log_message(f"Error loading Coinglass data: {e}")
+            # Only log Coinglass errors once every 30 seconds to prevent spam
+            if not hasattr(self, 'last_coinglass_error') or current_time - self.last_coinglass_error > 30:
+                self.log_message(f"Warning: Coinglass data file not found or invalid")
+                self.last_coinglass_error = current_time
             return None
 
     def calculate_rsi(self, closes, periods=14):
-        """Calculate RSI for a given series of closing prices."""
+        """Calculate RSI using Binance's method."""
         try:
             # Calculate price changes
             delta = closes.diff()
@@ -420,7 +440,7 @@ class TradingGUI:
             gains = delta.where(delta > 0, 0)
             losses = -delta.where(delta < 0, 0)
             
-            # Calculate average gains and losses over the specified period
+            # First average
             avg_gains = gains.rolling(window=periods).mean()
             avg_losses = losses.rolling(window=periods).mean()
             
@@ -431,7 +451,7 @@ class TradingGUI:
             return rsi
         except Exception as e:
             self.log_message(f"Error calculating RSI: {e}")
-            return None
+            return pd.Series([50] * len(closes))  # Return neutral RSI on error
 
     def calculate_1h_netflow(self, coinglass_data):
         """Calculate 1-hour netflow from Coinglass data."""
@@ -524,19 +544,226 @@ class TradingGUI:
             self.log_message(f"Error generating signal: {e}")
             return "NO SIGNAL"
 
+    def update_positions_and_price(self):
+        """Update positions and market price with proper scheduling."""
+        try:
+            current_time = time.time() * 1000  # Convert to milliseconds
+            
+            # Prevent concurrent updates
+            if not self.is_updating_positions:
+                self.is_updating_positions = True
+                try:
+                    # Check if enough time has passed since last update
+                    if current_time - self.last_position_update >= self.position_update_interval:
+                        self.update_positions()
+                        self.last_position_update = current_time
+                finally:
+                    self.is_updating_positions = False
+            
+            if not self.is_updating_price:
+                self.is_updating_price = True
+                try:
+                    # Check if enough time has passed since last update
+                    if current_time - self.last_price_update >= self.update_interval:
+                        self.update_market_price()
+                        self.last_price_update = current_time
+                finally:
+                    self.is_updating_price = False
+                    
+        except Exception as e:
+            self.log_message(f"Error in update cycle: {str(e)}")
+        finally:
+            # Schedule next update using a single timer
+            self.root.after(1000, self.update_positions_and_price)
+    
+    def update_positions(self):
+        """Update positions with timeout handling."""
+        try:
+            # Get positions and account info with timeout
+            positions = self.trader.client.futures_account_balance(timeout=5)
+            account_info = self.trader.client.futures_account(timeout=5)
+            position_info = self.trader.client.futures_position_information(timeout=5)
+            open_orders = self.trader.client.futures_get_open_orders(timeout=5)
+            
+            # Clear existing items
+            for item in self.positions_tree.get_children():
+                self.positions_tree.delete(item)
+            
+            # Update balance display
+            if positions:
+                usdt_balance = next((float(bal['balance']) for bal in positions if bal['asset'] == 'USDT'), 0)
+                usdt_available = next((float(bal['availableBalance']) for bal in positions if bal['asset'] == 'USDT'), 0)
+                unrealized_pnl = float(account_info.get('totalUnrealizedProfit', 0))
+                balance_text = f"USDT Balance: {usdt_balance:.2f} (Available: {usdt_available:.2f}) | Unrealized P&L: {unrealized_pnl:.2f}"
+                self.holdings_var.set(balance_text)
+            
+            # Update positions
+            for position in position_info:
+                pos_amt = float(position.get('positionAmt', 0))
+                if abs(pos_amt) > 0:  # Only show non-zero positions
+                    symbol = position['symbol']
+                    entry_price = float(position.get('entryPrice', 0))
+                    mark_price = float(position.get('markPrice', 0))
+                    leverage = position.get('leverage', '1')
+                    unrealized_pnl = float(position.get('unRealizedProfit', 0))
+                    
+                    # Find SL/TP orders for this position
+                    sl_order = next((order for order in open_orders 
+                                   if order['symbol'] == symbol and order['type'] == 'STOP_MARKET'), None)
+                    tp_order = next((order for order in open_orders 
+                                   if order['symbol'] == symbol and order['type'] == 'TAKE_PROFIT_MARKET'), None)
+                    
+                    # Calculate SL/TP percentages and prices
+                    sl_price = float(sl_order['stopPrice']) if sl_order else 0
+                    tp_price = float(tp_order['stopPrice']) if tp_order else 0
+                    
+                    sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
+                    tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
+                    
+                    # If position is short, invert the percentages
+                    if pos_amt < 0:
+                        sl_percent = -sl_percent
+                        tp_percent = -tp_percent
+                    
+                    # Calculate PNL percentage based on position size and entry price
+                    position_value = abs(pos_amt * entry_price)
+                    pnl_percentage = (unrealized_pnl / position_value * 100) if position_value != 0 else 0
+                    
+                    self.positions_tree.insert('', 'end', values=(
+                        symbol,
+                        f"{pos_amt:.4f}",
+                        f"{entry_price:.2f}",
+                        f"{leverage}x",
+                        f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else "N/A",
+                        f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price else "N/A",
+                        "Edit",
+                        "Close"
+                    ))
+                    
+            # Bind click events for Edit and Close buttons
+            self.positions_tree.bind('<ButtonRelease-1>', self.handle_position_click)
+                    
+        except Exception as e:
+            self.log_message(f"Error updating positions: {str(e)}")
+
+    def handle_position_click(self, event):
+        """Handle clicks on the positions tree."""
+        try:
+            item = self.positions_tree.identify_row(event.y)
+            column = self.positions_tree.identify_column(event.x)
+            
+            if not item:
+                return
+                
+            values = self.positions_tree.item(item)['values']
+            if not values:
+                return
+                
+            symbol = values[0]
+            pos_amt = float(values[1])
+            entry_price = float(values[2].replace('x', ''))  # Remove 'x' from leverage
+            
+            # Handle Edit button click (column #7)
+            if column == '#7':  # Edit column
+                self.edit_position_sl_tp(symbol, pos_amt, entry_price)
+            
+            # Handle Close button click (column #8)
+            elif column == '#8':  # Close column
+                self.close_single_position(symbol, pos_amt)
+                
+        except Exception as e:
+            self.log_message(f"Error handling position click: {str(e)}")
+
+    def edit_position_sl_tp(self, symbol, pos_amt, entry_price):
+        """Edit SL/TP for a position."""
+        try:
+            # Get current SL/TP values
+            open_orders = self.trader.client.futures_get_open_orders(symbol=symbol)
+            sl_order = next((order for order in open_orders if order['type'] == 'STOP_MARKET'), None)
+            tp_order = next((order for order in open_orders if order['type'] == 'TAKE_PROFIT_MARKET'), None)
+            
+            current_sl_percent = 0
+            current_tp_percent = 0
+            
+            if sl_order:
+                sl_price = float(sl_order['stopPrice'])
+                current_sl_percent = ((sl_price - entry_price) / entry_price * 100)
+                if pos_amt < 0:  # Short position
+                    current_sl_percent = -current_sl_percent
+                    
+            if tp_order:
+                tp_price = float(tp_order['stopPrice'])
+                current_tp_percent = ((tp_price - entry_price) / entry_price * 100)
+                if pos_amt < 0:  # Short position
+                    current_tp_percent = -current_tp_percent
+            
+            # Ask for new values
+            new_sl = simpledialog.askfloat("Edit Stop Loss", 
+                                         f"Enter new Stop Loss % for {symbol}\nCurrent: {current_sl_percent:.1f}%",
+                                         initialvalue=current_sl_percent)
+            if new_sl is None:
+                return
+                
+            new_tp = simpledialog.askfloat("Edit Take Profit", 
+                                         f"Enter new Take Profit % for {symbol}\nCurrent: {current_tp_percent:.1f}%",
+                                         initialvalue=current_tp_percent)
+            if new_tp is None:
+                return
+            
+            # Cancel existing SL/TP orders
+            if sl_order:
+                self.trader.client.futures_cancel_order(symbol=symbol, orderId=sl_order['orderId'])
+            if tp_order:
+                self.trader.client.futures_cancel_order(symbol=symbol, orderId=tp_order['orderId'])
+            
+            # Place new SL/TP orders
+            direction = 'long' if pos_amt > 0 else 'short'
+            leverage = float(self.trader.client.futures_position_information(symbol=symbol)[0]['leverage'])
+            
+            success = self.trader.place_stop_loss_take_profit(
+                symbol, entry_price, pos_amt, direction, new_sl, new_tp, leverage
+            )
+            
+            if success:
+                self.log_message(f"Successfully updated SL/TP for {symbol} to SL={new_sl:.1f}%, TP={new_tp:.1f}%")
+            else:
+                self.log_message(f"Failed to update SL/TP for {symbol}")
+                
+        except Exception as e:
+            self.log_message(f"Error editing position SL/TP: {str(e)}")
+        finally:
+            self.update_positions_and_price()
+
+    def close_single_position(self, symbol, size):
+        """Close a single position."""
+        try:
+            self.log_message(f"Closing position: {symbol}, Size: {size}")
+            success = self.trader.close_position(contract=symbol, size=size, price='0', tif='IOC')
+            
+            if success:
+                self.log_message(f"Successfully closed position: {symbol}")
+            else:
+                self.log_message(f"Failed to close position: {symbol}")
+                
+        except Exception as e:
+            self.log_message(f"Error closing position: {str(e)}")
+        finally:
+            self.update_positions_and_price()
+
     def update_market_price(self):
-        """Update market price and indicators."""
+        """Update market price and indicators with timeout handling."""
         try:
             # Get the selected contract
             contract = self.contract_var.get()
             if not contract:
                 return
             
-            # Fetch klines data
+            # Fetch klines data with timeout
             klines = self.trader.client.futures_klines(
                 symbol=contract,
                 interval='5m',
-                limit=50  # Increased for RSI calculation
+                limit=100,
+                timeout=5
             )
             
             if not klines:
@@ -547,93 +774,87 @@ class TradingGUI:
             current_price = closes.iloc[-1]
             ma7 = closes.rolling(window=7).mean().iloc[-1]
             ma25 = closes.rolling(window=25).mean().iloc[-1]
-            current_rsi = self.calculate_rsi(closes, periods=14).iloc[-1]
+            
+            # Calculate RSI
+            rsi = self.calculate_rsi(closes, periods=14)
+            current_rsi = rsi.iloc[-1] if not pd.isna(rsi.iloc[-1]) else 50
 
             # Store previous values for signal calculation
             self.prev_ma7 = closes.rolling(window=7).mean().iloc[-2]
             self.prev_ma25 = closes.rolling(window=25).mean().iloc[-2]
             self.prev_price = closes.iloc[-2]
 
-            # Update Coinglass data
-            coinglass = self.load_coinglass_data()
-            if coinglass is not None:
-                # Update short-term flows
-                flow_5m = float(coinglass['5m'])
-                flow_15m = float(coinglass['15m'])
-                flow_30m = float(coinglass['30m'])
-                
-                # Calculate 1-hour netflow
-                df = pd.read_csv(self.coinglass_file)
-                df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="%d %b %Y, %H:%M")
-                df = df.sort_values('Timestamp', ascending=False)
-                flow_1h = self.calculate_1h_netflow(df)
-                
-                self.flow_5m_label.config(
-                    text=f"5min Flow: {flow_5m:,.0f}",
-                    foreground="green" if flow_5m < 0 else "red"
-                )
-                self.flow_15m_label.config(
-                    text=f"15min Flow: {flow_15m:,.0f}",
-                    foreground="green" if flow_15m < 0 else "red"
-                )
-                self.flow_30m_label.config(
-                    text=f"30min Flow: {flow_30m:,.0f}",
-                    foreground="green" if flow_30m < 0 else "red"
-                )
-
-            # Generate and store signal
+            # Generate signal
             signal = self.generate_signal(current_price, ma7, ma25)
+            
+            # Update GUI elements in a single batch
+            def update_gui():
+                self.price_label.config(text=f"Price: {current_price:,.2f}")
+                self.ma7_label.config(text=f"MA7: {ma7:.2f}")
+                self.ma25_label.config(text=f"MA25: {ma25:.2f}")
+                self.signal_label.config(
+                    text=f"Signal: {signal} (RSI: {current_rsi:.1f})",
+                    foreground=self.get_signal_color(signal)
+                )
+                self.update_signal_history(signal, current_rsi)
+                
+                # Update Coinglass data if available
+                coinglass = self.load_coinglass_data()
+                if coinglass is not None:
+                    flow_5m = float(coinglass['5m'])
+                    flow_15m = float(coinglass['15m'])
+                    flow_30m = float(coinglass['30m'])
+                    
+                    self.flow_5m_label.config(
+                        text=f"5min Flow: {flow_5m:,.0f}",
+                        foreground="green" if flow_5m < 0 else "red"
+                    )
+                    self.flow_15m_label.config(
+                        text=f"15min Flow: {flow_15m:,.0f}",
+                        foreground="green" if flow_15m < 0 else "red"
+                    )
+                    self.flow_30m_label.config(
+                        text=f"30min Flow: {flow_30m:,.0f}",
+                        foreground="green" if flow_30m < 0 else "red"
+                    )
+            
+            # Schedule GUI updates to run in the main thread
+            self.root.after_idle(update_gui)
+            
+        except Exception as e:
+            self.log_message(f"Error updating market price: {str(e)}")
+
+    def update_signal_history(self, signal, current_rsi):
+        """Update signal history without blocking the GUI."""
+        try:
             current_time = datetime.now()
             
-            # Check if this is a new valid signal (not "NO SIGNAL")
+            # Update signal history if it's a new signal
             if signal != "NO SIGNAL":
-                # Check if this is a different signal from the previous one
-                # or if enough time has passed since the last signal (minimum 5 minutes)
                 if (signal != self.prev_signal or 
                     self.prev_signal_time is None or 
                     (current_time - self.prev_signal_time).total_seconds() >= 300):
                     
                     self.signal_history.append((current_time, signal))
-                    # Keep only last 100 valid signals
                     if len(self.signal_history) > 100:
                         self.signal_history.pop(0)
                     
-                    # Update previous signal tracking
                     self.prev_signal = signal
                     self.prev_signal_time = current_time
-                    
-                    # Log new signal with indicators
-                    self.log_message(
-                        f"New {signal} signal generated - "
-                        f"RSI: {current_rsi:.2f}, "
-                        f"MA7/MA25: {ma7:.2f}/{ma25:.2f}, "
-                        f"5m Flow: {flow_5m:,.0f}, "
-                        f"1h Flow: {flow_1h:,.0f if flow_1h is not None else 0}"
-                    )
-
-            # Update GUI elements
-            self.price_label.config(text=f"Price: {current_price:,.2f}")
-            self.ma7_label.config(text=f"MA7: {ma7:.2f}")
-            self.ma25_label.config(text=f"MA25: {ma25:.2f}")
-            self.signal_label.config(
-                text=f"Signal: {signal} (RSI: {current_rsi:.1f})",
-                foreground=self.get_signal_color(signal)
-            )
-
+            
             # Update signal history display
-            self.signal_history_text.config(state='normal')
-            self.signal_history_text.delete(1.0, tk.END)
-            for ts, sig in reversed(self.signal_history[-10:]):  # Show last 10 signals
-                color = self.get_signal_color(sig)
-                self.signal_history_text.insert(tk.END, f"{ts.strftime('%H:%M:%S')}: {sig}\n", color)
-            self.signal_history_text.config(state='disabled')
-
-            # Schedule next update
-            self.root.after(5000, self.update_market_price)
-
+            def update_history_display():
+                self.signal_history_text.config(state='normal')
+                self.signal_history_text.delete(1.0, tk.END)
+                for ts, sig in reversed(self.signal_history[-10:]):
+                    self.signal_history_text.insert(tk.END, f"{ts.strftime('%H:%M:%S')}: {sig}\n")
+                self.signal_history_text.config(state='disabled')
+            
+            # Schedule history display update to run in the main thread
+            self.root.after_idle(update_history_display)
+            
         except Exception as e:
-            self.log_message(f"Error updating market price: {e}")
-            self.root.after(5000, self.update_market_price)
+            self.log_message(f"Error updating signal history: {str(e)}")
 
     def get_signal_color(self, signal):
         """Return color for signal display."""
@@ -645,98 +866,6 @@ class TradingGUI:
             "STRONG SELL": "dark red"
         }
         return colors.get(signal, "black")
-
-    def update_positions_and_price(self):
-        for item in self.positions_tree.get_children():
-            self.positions_tree.delete(item)
-        
-        balance = self.trader.get_account_balance()
-        unrealized_pnl = self.trader.calculate_unrealized_pnl()
-        if balance:
-            # Format unrealized P&L with a '+' sign for positive values
-            pnl_sign = '+' if unrealized_pnl >= 0 else ''
-            self.holdings_var.set(
-                f"USDT Balance: {balance['total']:.2f} (Available: {balance['available']:.2f}) | Unrealized P&L: {pnl_sign}{unrealized_pnl:.2f}"
-            )
-        else:
-            self.holdings_var.set("USDT Balance: Error fetching balance | Unrealized P&L: N/A")
-
-        positions = self.trader.get_open_positions()
-        if not positions:
-            self.log_message("No open positions retrieved (API may be unavailable or no positions open)")
-        else:
-            for position in positions:
-                contract = position['symbol']
-                size = float(position['positionAmt'])
-                entry_price = float(position['entryPrice'])
-                direction = 'long' if size > 0 else 'short' if size < 0 else 'none'
-                leverage = self.trader.sl_tp_orders.get(contract, {}).get('leverage', float(position.get('leverage', 1)))
-                sl_percent = self.trader.sl_tp_orders.get(contract, {}).get('sl_percent', -2.0)
-                tp_percent = self.trader.sl_tp_orders.get(contract, {}).get('tp_percent', 5.0)
-                sl_price = self.trader.sl_tp_orders.get(contract, {}).get('sl_price', None)
-                tp_price = self.trader.sl_tp_orders.get(contract, {}).get('tp_price', None)
-                sl_display = f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price is not None else "N/A"
-                tp_display = f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price is not None else "N/A"
-                self.positions_tree.insert('', 'end', values=(
-                    contract, size, entry_price, f"{leverage}x", sl_display, tp_display, 'Edit', 'Close'
-                ))
-                # Log confirmation of SL/TP match
-                if sl_price and tp_price:
-                    self.log_message(f"Confirmed SL/TP for {contract}: SL={sl_display}, TP={tp_display}")
-
-        self.positions_tree.bind('<ButtonRelease-1>', self.handle_position_click)
-        self.root.after(10000, self.update_positions_and_price)
-        self.update_market_price()
-
-    def edit_sl_tp(self, contract, size, entry_price, direction, current_sl_percent, current_tp_percent):
-        sl_percent = simpledialog.askfloat("Edit Stop Loss", f"Enter new SL % for {contract} (current: {current_sl_percent}):", initialvalue=current_sl_percent)
-        if sl_percent is None:
-            return
-        
-        tp_percent = simpledialog.askfloat("Edit Take Profit", f"Enter new TP % for {contract} (current: {current_tp_percent}):", initialvalue=current_tp_percent)
-        if tp_percent is None:
-            return
-
-        leverage = float(self.trader.client.futures_position_information(symbol=contract)[0].get('leverage', 1))
-        # Cancel existing SL/TP orders to avoid conflicts
-        if contract in self.trader.sl_tp_orders:
-            for order_id in [self.trader.sl_tp_orders[contract].get('sl_order_id'), self.trader.sl_tp_orders[contract].get('tp_order_id')]:
-                if order_id:
-                    try:
-                        self.trader.client.futures_cancel_order(symbol=contract, orderId=order_id)
-                        self.log_message(f"Cancelled existing order {order_id} for {contract}")
-                    except Exception as e:
-                        self.log_message(f"Error cancelling order {order_id} for {contract}: {e}")
-        
-        success = self.trader.place_stop_loss_take_profit(contract, entry_price, size, direction, sl_percent, tp_percent, leverage)
-        if success:
-            self.log_message(f"Updated SL/TP for {contract} to {sl_percent}% / {tp_percent}%")
-        else:
-            self.log_message(f"Failed to update SL/TP for {contract}")
-        self.update_positions_and_price()
-
-    def handle_position_click(self, event):
-        item = self.positions_tree.identify_row(event.y)
-        column = self.positions_tree.identify_column(event.x)
-        if item:
-            values = self.positions_tree.item(item)['values']
-            contract = values[0]
-            size = float(values[1])
-            entry_price = float(values[2])
-            direction = 'long' if size > 0 else 'short' if size < 0 else 'none'
-            
-            if column == '#7':  # Edit column (updated for new column layout)
-                current_sl_percent = self.trader.sl_tp_orders.get(contract, {}).get('sl_percent', -2.0)
-                current_tp_percent = self.trader.sl_tp_orders.get(contract, {}).get('tp_percent', 5.0)
-                self.edit_sl_tp(contract, size, entry_price, direction, current_sl_percent, current_tp_percent)
-            elif column == '#8':  # Close column (updated for new column layout)
-                self.log_message(f"Closing position: {contract}, Size: {size}")
-                success = self.trader.close_position(contract=contract, size=size, price='0', tif='IOC')
-                if success:
-                    self.log_message(f"Successfully closed position: {contract}")
-                else:
-                    self.log_message(f"Failed to close position: {contract}")
-                self.update_positions_and_price()
 
     def execute_trade(self):
         self.log_message("Starting trade execution...")
