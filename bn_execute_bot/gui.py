@@ -625,10 +625,10 @@ class TradingGUI:
                         sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
                         tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
                     else:  # Short position
-                        sl_percent = ((entry_price - sl_price) / entry_price * 100) if sl_price else 0
-                        tp_percent = ((entry_price - tp_price) / entry_price * 100) if tp_price else 0
+                        sl_percent = -((sl_price - entry_price) / entry_price * 100) if sl_price else 0  # Invert for shorts
+                        tp_percent = -((tp_price - entry_price) / entry_price * 100) if tp_price else 0  # Invert for shorts
                     
-                    # Format display strings
+                    # Format display strings with proper rounding
                     sl_display = f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else "N/A"
                     tp_display = f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price else "N/A"
                     
