@@ -8,21 +8,60 @@ import time
 from dotenv import load_dotenv
 from trader import BinanceFuturesTrader
 from gui import TradingGUI
+from datetime import datetime
 
 def start_coinglass_crawler():
-    """Start the Coinglass crawler in a separate process."""
+    """Start the Coinglass crawler in a separate process with enhanced monitoring."""
     try:
-        # Get the absolute path to btc_crawler.py
-        crawler_path = os.path.abspath(os.path.join('..', 'coinglass', 'btc_crawler.py'))
+        # Get the absolute path to btc_crawler.py using the current script's location
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        crawler_path = os.path.abspath(os.path.join(current_dir, '..', 'coinglass', 'btc_crawler.py'))
+        
+        print(f"Looking for crawler at: {crawler_path}")
+        
+        if not os.path.exists(crawler_path):
+            print(f"Error: Crawler script not found at {crawler_path}")
+            return None
+            
+        # Create logs directory if it doesn't exist
+        logs_dir = os.path.join(os.path.dirname(crawler_path), 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Set up log files with absolute paths
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        stdout_log = os.path.join(logs_dir, f'crawler_output_{timestamp}.log')
+        stderr_log = os.path.join(logs_dir, f'crawler_error_{timestamp}.log')
+        
+        print(f"Starting crawler process...")
         
         # Start the crawler script
-        crawler_process = subprocess.Popen([sys.executable, crawler_path],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE,
-                                         creationflags=subprocess.CREATE_NEW_CONSOLE)  # New window for Windows
+        startupinfo = None
+        if sys.platform == 'win32':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         
-        print(f"Started Coinglass crawler (PID: {crawler_process.pid})")
-        return crawler_process
+        # Start the crawler with output redirection to files
+        with open(stdout_log, 'w', encoding='utf-8') as stdout_file, \
+             open(stderr_log, 'w', encoding='utf-8') as stderr_file:
+            
+            crawler_process = subprocess.Popen(
+                [sys.executable, crawler_path],
+                stdout=stdout_file,
+                stderr=stderr_file,
+                startupinfo=startupinfo,
+                cwd=os.path.dirname(crawler_path)  # Set working directory to crawler's directory
+            )
+            
+            # Check if process started successfully
+            time.sleep(2)
+            if crawler_process.poll() is None:
+                print(f"Started Coinglass crawler (PID: {crawler_process.pid})")
+                print(f"Logs are being written to:\nOutput: {stdout_log}\nErrors: {stderr_log}")
+                return crawler_process
+            else:
+                print("Error: Crawler process failed to start")
+                return None
+            
     except Exception as e:
         print(f"Error starting Coinglass crawler: {e}")
         return None

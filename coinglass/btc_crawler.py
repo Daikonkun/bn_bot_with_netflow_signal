@@ -23,14 +23,14 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
     handlers=[
-        logging.FileHandler('crawler.log', encoding='utf-8'),
+        logging.FileHandler(os.path.join(os.path.dirname(__file__), 'crawler.log'), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 
-# 用于存储最近三次获取数据的时间和 Netflow 数据
+# Initialize fetch history
 fetch_history = []
 
 def get_random_delay(min_seconds=1, max_seconds=3):
@@ -38,39 +38,74 @@ def get_random_delay(min_seconds=1, max_seconds=3):
     return random.uniform(min_seconds, max_seconds)
 
 def setup_driver():
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')
-    chrome_options.add_argument('--disable-gpu')
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--ignore-certificate-errors')
-    chrome_options.add_argument('--ignore-ssl-errors')
-    chrome_options.add_argument('--disable-web-security')
-    chrome_options.add_argument('--allow-running-insecure-content')
-    chrome_options.add_argument('--disable-software-rasterizer')
-    
-    # Add random user agent
-    ua = UserAgent()
-    chrome_options.add_argument(f'user-agent={ua.random}')
-    
-    # Disable automation flags
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
-    
-    # Use ChromeDriverManager to handle driver installation
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    
-    # Additional automation detection evasion
-    driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-        'source': '''
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-        '''
-    })
-    
-    return driver
+    """Set up Chrome driver with enhanced anti-detection measures"""
+    try:
+        chrome_options = Options()
+        
+        # Proper headless mode configuration
+        chrome_options.add_argument('--headless=new')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--start-maximized')
+        chrome_options.add_argument('--disable-notifications')
+        chrome_options.add_argument('--disable-popup-blocking')
+        
+        # Add random user agent
+        ua = UserAgent()
+        user_agent = ua.random
+        chrome_options.add_argument(f'user-agent={user_agent}')
+        logging.info(f"Using User-Agent: {user_agent}")
+        
+        # Add additional headers
+        chrome_options.add_argument('--accept-language=en-US,en;q=0.9')
+        chrome_options.add_argument('--accept=text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8')
+        
+        # Disable automation flags
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # Additional headless settings
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--mute-audio')
+        
+        try:
+            # Try to use ChromeDriverManager
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception as e:
+            logging.error(f"Error using ChromeDriverManager: {e}")
+            # Fallback to local chromedriver if available
+            local_driver_path = os.path.join(os.path.dirname(__file__), 'chromedriver.exe')
+            if os.path.exists(local_driver_path):
+                logging.info("Using local chromedriver")
+                service = Service(local_driver_path)
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            else:
+                raise Exception("No valid chromedriver found")
+        
+        # Additional automation detection evasion
+        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+            'source': '''
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+                window.chrome = {
+                    runtime: {}
+                };
+            '''
+        })
+        
+        logging.info("Chrome driver setup completed successfully in headless mode")
+        return driver
+    except Exception as e:
+        logging.error(f"Failed to setup Chrome driver: {e}")
+        raise
 
 def wait_and_find_element(driver, by, selector, timeout=10, retries=3):
     for attempt in range(retries):
@@ -126,63 +161,86 @@ def infer_refresh_time(fetch_history):
     return round(avg_delta / 5) * 5  # 假设刷新间隔是 5 分钟的倍数
 
 def fetch_data():
+    """Fetch data with enhanced error handling and retry logic"""
     logging.info("Starting data fetch...")
     driver = None
-    try:
-        driver = setup_driver()
-        url = "https://www.coinglass.com/spot-inflow-outflow"
-        driver.get(url)
-        logging.info("Page loaded, waiting for data...")
-        time.sleep(5)  # Initial wait for page load
-
-        # Try multiple selectors for the BTC data row
-        selectors = [
-            "//tr[contains(., 'BTC')]",  # XPath for any row containing BTC
-            "//div[contains(@class, 'coin-row') and contains(., 'BTC')]",  # Alternative XPath
-            "//table//tr[.//td[contains(text(), 'BTC')]]",  # Another alternative
-            "//div[contains(@class, 'MuiTableRow-root') and contains(., 'BTC')]"  # MUI specific
-        ]
-
-        btc_row = None
-        for selector in selectors:
-            try:
-                btc_row = wait_and_find_element(driver, By.XPATH, selector)
-                if btc_row:
-                    break
-            except:
-                continue
-
-        if not btc_row:
-            raise NoSuchElementException("Could not find BTC data row with any selector")
-
-        # Extract timestamp
-        timestamp = datetime.now().strftime("%d %b %Y, %H:%M")
-        logging.info(f"Timestamp captured: {timestamp}")
-
-        # Extract netflow data
-        netflow_data = btc_row.text.strip()
-        logging.info(f"Raw data captured: {netflow_data}")
-
-        # Process and store the data
-        result = {
-            'timestamp': timestamp,
-            'netflow': 'BTC',
-            'data': netflow_data
-        }
-        
-        logging.info(f"Data extracted successfully: {result}")
-        return result
-
-    except Exception as e:
-        logging.error(f"Error during data fetch: {str(e)}")
-        return None
-    finally:
-        if driver:
-            try:
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            if driver:
                 driver.quit()
-                logging.info("Browser closed successfully")
-            except Exception as e:
-                logging.warning(f"Error closing browser: {str(e)}")
+            driver = setup_driver()
+            url = "https://www.coinglass.com/spot-inflow-outflow"
+            driver.get(url)
+            logging.info("Page loaded, waiting for data...")
+            
+            # Add random delay between 3-7 seconds
+            time.sleep(random.uniform(3, 7))
+            
+            # Try different methods to find the BTC data
+            selectors = [
+                "//tr[contains(., 'BTC')]",
+                "//div[contains(@class, 'coin-row') and contains(., 'BTC')]",
+                "//table//tr[.//td[contains(text(), 'BTC')]]",
+                "//div[contains(@class, 'MuiTableRow-root') and contains(., 'BTC')]",
+                "//div[contains(text(), 'BTC')]//ancestor::tr",
+                "//div[contains(@class, 'table')]//tr[contains(., 'BTC')]"
+            ]
+            
+            btc_row = None
+            for selector in selectors:
+                try:
+                    btc_row = wait_and_find_element(driver, By.XPATH, selector, timeout=5)
+                    if btc_row:
+                        logging.info(f"Found BTC data using selector: {selector}")
+                        break
+                except Exception as e:
+                    logging.debug(f"Selector failed: {selector}, Error: {e}")
+                    continue
+            
+            if not btc_row:
+                raise NoSuchElementException("Could not find BTC data with any selector")
+            
+            # Extract timestamp
+            timestamp = datetime.now().strftime("%d %b %Y, %H:%M")
+            
+            # Extract and validate netflow data
+            netflow_data = btc_row.text.strip()
+            if not netflow_data:
+                raise ValueError("Empty netflow data")
+                
+            logging.info(f"Raw data captured: {netflow_data}")
+            
+            # Validate data format
+            if '$' not in netflow_data:
+                raise ValueError("Invalid data format: no currency values found")
+            
+            result = {
+                'timestamp': timestamp,
+                'netflow': 'BTC',
+                'data': netflow_data
+            }
+            
+            logging.info(f"Data extracted successfully: {result}")
+            return result
+            
+        except Exception as e:
+            retry_count += 1
+            logging.error(f"Attempt {retry_count}/{max_retries} failed: {str(e)}")
+            if retry_count < max_retries:
+                time.sleep(10)  # Wait before retry
+            else:
+                logging.error("All retry attempts failed")
+                return None
+        finally:
+            if driver:
+                try:
+                    driver.quit()
+                    logging.info("Browser closed successfully")
+                except Exception as e:
+                    logging.warning(f"Error closing browser: {str(e)}")
 
 def save_data(timestamp, netflow_data):
     """Save data to CSV file with proper formatting"""
@@ -255,36 +313,104 @@ def save_data(timestamp, netflow_data):
         logging.error(f"Raw netflow data: {netflow_data}")
 
 def fetch_and_store_data():
-    """抓取并存储数据"""
-    logging.info("定时任务触发")
-    result = fetch_data()
-    if result:
-        timestamp, netflow = result['timestamp'], result['data']
-        save_data(timestamp, netflow)
-        logging.info(f"成功保存数据: {timestamp}")
-    else:
-        logging.warning("未获取到有效数据，未保存")
-
-# 设置定时任务，每 5 分钟运行一次
-schedule.every(5).minutes.do(fetch_and_store_data)
+    """Fetch and store data with proper error handling"""
+    logging.info("Scheduled task triggered")
+    try:
+        result = fetch_data()
+        if result:
+            timestamp, netflow = result['timestamp'], result['data']
+            save_data(timestamp, netflow)
+            logging.info(f"Data saved successfully: {timestamp}")
+        else:
+            logging.warning("No valid data received, retrying in next cycle")
+    except Exception as e:
+        logging.error(f"Error in fetch_and_store_data: {str(e)}")
 
 def main():
-    logging.info("Script started")
-    try:
-        data = fetch_data()
-        if data:
-            logging.info(f"Successfully fetched data: {data}")
-            # Save the data to CSV
-            save_data(data['timestamp'], data['data'])
-        else:
-            logging.error("Failed to fetch data")
-    except Exception as e:
-        logging.error(f"Main execution error: {str(e)}")
-    logging.info("Script completed")
+    """Main function with improved error handling and scheduling"""
+    logging.info("Starting crawler main function")
+    
+    # Schedule the task to run every 5 minutes
+    schedule.every(5).minutes.do(fetch_and_store_data)
+    
+    # Initial run
+    retry_count = 0
+    max_retries = 3
+    initial_success = False
+    
+    while retry_count < max_retries and not initial_success:
+        try:
+            logging.info("Attempting initial data fetch...")
+            result = fetch_and_store_data()
+            if result:
+                initial_success = True
+                logging.info("Initial data fetch successful")
+            else:
+                retry_count += 1
+                logging.warning(f"Initial fetch attempt {retry_count} failed")
+                time.sleep(10)
+        except Exception as e:
+            retry_count += 1
+            logging.error(f"Error during initial fetch attempt {retry_count}: {str(e)}")
+            time.sleep(10)
+    
+    if not initial_success:
+        logging.error("Failed to fetch initial data after maximum retries")
+        return
+    
+    # Main loop
+    logging.info("Starting main loop")
+    consecutive_errors = 0
+    max_consecutive_errors = 5
+    
+    while True:
+        try:
+            # Run pending tasks
+            schedule.run_pending()
+            
+            # Check if the data file exists and is being updated
+            csv_file = os.path.join(os.path.dirname(__file__), 'btc_spot_netflow.csv')
+            if os.path.exists(csv_file):
+                last_modified = os.path.getmtime(csv_file)
+                current_time = time.time()
+                if current_time - last_modified > 600:  # 10 minutes
+                    logging.warning("Data file hasn't been updated in 10 minutes")
+                    result = fetch_and_store_data()
+                    if result:
+                        consecutive_errors = 0
+            
+            # Sleep for a short time
+            time.sleep(1)
+            consecutive_errors = 0  # Reset error counter on success
+            
+        except Exception as e:
+            consecutive_errors += 1
+            logging.error(f"Error in main loop: {str(e)}")
+            if consecutive_errors >= max_consecutive_errors:
+                logging.critical(f"Too many consecutive errors ({consecutive_errors}). Restarting crawler...")
+                # Try to restart by running initial fetch again
+                try:
+                    result = fetch_and_store_data()
+                    if result:
+                        consecutive_errors = 0
+                        logging.info("Successfully recovered from errors")
+                        continue
+                except Exception as restart_error:
+                    logging.error(f"Failed to restart after errors: {str(restart_error)}")
+                break
+            time.sleep(5)
 
 if __name__ == "__main__":
-    logging.info("爬虫启动")
-    main()
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    logging.info("Crawler starting up")
+    while True:  # Outer loop for automatic restart
+        try:
+            main()
+            logging.error("Main loop exited, restarting in 30 seconds...")
+            time.sleep(30)
+        except KeyboardInterrupt:
+            logging.info("Crawler stopped by user")
+            break
+        except Exception as e:
+            logging.error(f"Fatal error: {str(e)}")
+            logging.info("Restarting in 30 seconds...")
+            time.sleep(30)

@@ -236,20 +236,56 @@ class TradingGUI:
         self.ma25_label = ttk.Label(price_ma_frame, text="MA25: 0.00")
         self.ma25_label.pack(side=tk.LEFT, padx=2)
 
-        # Coinglass Data Display (more compact)
+        # Exchange Flow Data Frame
         coinglass_frame = ttk.LabelFrame(right_frame, text="Exchange Flow Data", padding="2 2 2 2")
         coinglass_frame.pack(fill=tk.X, pady=1)
         
-        # All flows in one row
-        flow_frame = ttk.Frame(coinglass_frame)
-        flow_frame.pack(fill=tk.X)
+        # Last update time
+        self.exchange_flow_time_var = tk.StringVar(value="Last Update: N/A")
+        time_label = ttk.Label(coinglass_frame, textvariable=self.exchange_flow_time_var)
+        time_label.pack(fill=tk.X, padx=5, pady=2)
         
-        self.flow_5m_label = ttk.Label(flow_frame, text="5min: 0")
-        self.flow_5m_label.pack(side=tk.LEFT, padx=2)
-        self.flow_15m_label = ttk.Label(flow_frame, text="15min: 0")
-        self.flow_15m_label.pack(side=tk.LEFT, padx=2)
-        self.flow_30m_label = ttk.Label(flow_frame, text="30min: 0")
-        self.flow_30m_label.pack(side=tk.LEFT, padx=2)
+        # Create frames for different time periods
+        short_frame = ttk.Frame(coinglass_frame)
+        short_frame.pack(fill=tk.X, padx=5, pady=2)
+        
+        medium_frame = ttk.Frame(coinglass_frame)
+        medium_frame.pack(fill=tk.X, padx=5, pady=2)
+        
+        long_frame = ttk.Frame(coinglass_frame)
+        long_frame.pack(fill=tk.X, padx=5, pady=2)
+        
+        # Define flow periods and their groupings
+        flow_periods = [
+            ('5m', 'short'), ('15m', 'short'), ('30m', 'short'), ('1h', 'short'),
+            ('2h', 'medium'), ('4h', 'medium'), ('6h', 'medium'), ('8h', 'medium'),
+            ('12h', 'long'), ('24h', 'long')
+        ]
+        
+        # Create labels for each period
+        for period, frame_type in flow_periods:
+            frame = locals()[f"{frame_type}_frame"]
+            
+            # Create container frame for this period
+            period_frame = ttk.Frame(frame)
+            period_frame.pack(side=tk.LEFT, padx=2)
+            
+            # Period label
+            ttk.Label(period_frame, text=f"{period}:").pack(side=tk.LEFT)
+            
+            # Value label with initial value
+            value_label = ttk.Label(period_frame, text="0", width=8)
+            value_label.pack(side=tk.LEFT, padx=(2, 5))
+            
+            # Store reference to the value label
+            setattr(self, f"flow_{period}_label", value_label)
+        
+        # Add tooltips
+        strategy_info = """Exchange Flow Data shows the net flow of BTC between exchanges:
+• Positive values (red) indicate more BTC flowing into exchanges
+• Negative values (green) indicate more BTC flowing out of exchanges
+• Values are shown in different time periods from 5 minutes to 24 hours"""
+        self.create_tooltip(coinglass_frame, strategy_info)
 
         # Signal Display (more compact)
         signal_frame = ttk.LabelFrame(right_frame, text="Trading Signals", padding="2 2 2 2")
@@ -344,12 +380,6 @@ class TradingGUI:
         # Add tooltips for market data
         self.create_tooltip(self.price_label, 
             "Current market price of the trading pair")
-        
-        self.create_tooltip(self.flow_5m_label, 
-            "5-minute net exchange flow. Long signal below -$100K, Short signal above $100K")
-        
-        self.create_tooltip(self.flow_15m_label, 
-            "1-hour net exchange flow. Long signal below -$500K, Short signal above $500K")
 
         # Add RSI tooltip
         self.create_tooltip(self.signal_label,
@@ -370,6 +400,9 @@ class TradingGUI:
 - Timeframe: 5-minute candles"""
         
         self.create_tooltip(trade_frame, strategy_info)
+
+        # Schedule periodic updates
+        self.schedule_updates()
 
     def create_tooltip(self, widget, text):
         """Create a tooltip for a given widget."""
@@ -548,75 +581,67 @@ class TradingGUI:
             return None
 
     def load_coinglass_data(self):
-        """Load Coinglass data with rate limiting."""
-        current_time = time.time()
-        
-        # Only update every 5 seconds
-        if self.last_coinglass_update and current_time - self.last_coinglass_update < 5:
-            return self.coinglass_data
-            
+        """Load and display Coinglass exchange flow data."""
         try:
-            if os.path.exists(self.coinglass_file):
-                df = pd.read_csv(self.coinglass_file)
-                if df.empty:
-                    self.log_message("Warning: Coinglass data file is empty")
-                    return None
-                    
-                df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="%d %b %Y, %H:%M")
-                latest_row = df.iloc[0]
-                
-                # Extract flow values and ensure they are numeric
-                flow_5m = float(latest_row['5m'])
-                flow_15m = float(latest_row['15m'])
-                flow_30m = float(latest_row['30m'])
-                
-                self.coinglass_data = {
-                    '5m': flow_5m,
-                    '15m': flow_15m,
-                    '30m': flow_30m
-                }
-                
-                self.log_message(f"Loaded Coinglass data - 5m: {flow_5m:,.0f}, 15m: {flow_15m:,.0f}, 30m: {flow_30m:,.0f}")
-                self.last_coinglass_update = current_time
-                
-                # Update flow labels immediately
-                self.root.after_idle(lambda: self.update_flow_labels(self.coinglass_data))
-                
-                return self.coinglass_data
-            else:
-                self.log_message(f"Warning: Coinglass data file not found at {self.coinglass_file}")
-            return None
-        except Exception as e:
-            # Only log Coinglass errors once every 30 seconds to prevent spam
-            if not hasattr(self, 'last_coinglass_error') or current_time - self.last_coinglass_error > 30:
-                self.log_message(f"Error loading Coinglass data: {str(e)}")
-                self.last_coinglass_error = current_time
-            return None
-
-    def update_flow_labels(self, flow_data):
-        """Update Exchange Flow Data labels."""
-        if flow_data is None:
-            return
+            # Get the path to the coinglass data file
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            csv_file = os.path.join(current_dir, '..', 'coinglass', 'btc_spot_netflow.csv')
             
-        try:
-            flow_5m = float(flow_data['5m'])
-            flow_15m = float(flow_data['15m'])
-            flow_30m = float(flow_data['30m'])
+            if not os.path.exists(csv_file):
+                self.log_message("Warning: Exchange flow data file not found")
+                return
+                
+            # Read the CSV file
+            df = pd.read_csv(csv_file)
+            if df.empty:
+                self.log_message("Warning: Exchange flow data file is empty")
+                return
+                
+            # Sort by timestamp in descending order to get the latest data
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%d %b %Y, %H:%M')
+            df = df.sort_values('Timestamp', ascending=False)
             
-            self.flow_5m_label.config(
-                text=f"5min Flow: {flow_5m:,.0f}",
-                foreground="green" if flow_5m < 0 else "red"
-            )
-            self.flow_15m_label.config(
-                text=f"15min Flow: {flow_15m:,.0f}",
-                foreground="green" if flow_15m < 0 else "red"
-            )
-            self.flow_30m_label.config(
-                text=f"30min Flow: {flow_30m:,.0f}",
-                foreground="green" if flow_30m < 0 else "red"
-            )
+            # Get the latest row
+            latest_row = df.iloc[0]
+            
+            # Update the labels with the latest data
+            timestamp = latest_row['Timestamp'].strftime('%d %b %Y, %H:%M')
+            self.exchange_flow_time_var.set(f"Last Update: {timestamp}")
+            
+            # Update flow labels with proper formatting
+            flow_periods = ['5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '24h']
+            for period in flow_periods:
+                if period in latest_row.index:
+                    try:
+                        # Convert string to float, handling any potential formatting
+                        value_str = str(latest_row[period]).replace(',', '')
+                        value = float(value_str)
+                        
+                        # Format the value based on its magnitude
+                        if abs(value) >= 1_000_000:
+                            formatted_value = f"{value/1_000_000:.1f}M"
+                        elif abs(value) >= 1_000:
+                            formatted_value = f"{value/1_000:.1f}K"
+                        else:
+                            formatted_value = f"{value:.1f}"
+                        
+                        # Determine color based on value
+                        color = "green" if value > 0 else "red" if value < 0 else "gray"
+                        
+                        # Update the label
+                        label_name = f"flow_{period}_label"
+                        if hasattr(self, label_name):
+                            label = getattr(self, label_name)
+                            label.config(text=formatted_value, foreground=color)
+                            
+                    except (ValueError, KeyError) as e:
+                        self.log_message(f"Error parsing {period} value: {e}")
+                        continue
+            
         except Exception as e:
-            self.log_message(f"Error updating flow labels: {str(e)}")
+            self.log_message(f"Error loading exchange flow data: {str(e)}")
+            # Schedule retry after a short delay
+            self.root.after(5000, self.load_coinglass_data)
 
     def calculate_rsi(self, closes, periods=14):
         """Calculate RSI using Binance's method."""
@@ -792,27 +817,34 @@ class TradingGUI:
                                    if order['symbol'] == symbol 
                                    and order['type'] == 'TAKE_PROFIT_MARKET'), None)
                     
-                    # Get SL/TP prices
-                    sl_price = float(sl_order['stopPrice']) if sl_order else 0
-                    tp_price = float(tp_order['stopPrice']) if tp_order else 0
+                    # Get SL/TP prices and calculate percentages
+                    sl_price = float(sl_order['stopPrice']) if sl_order else None
+                    tp_price = float(tp_order['stopPrice']) if tp_order else None
                     
-                    # Get the actual SL/TP percentages from trader's sl_tp_orders
-                    if hasattr(self.trader, 'sl_tp_orders') and symbol in self.trader.sl_tp_orders:
-                        sl_percent = self.trader.sl_tp_orders[symbol]['stop_loss']
-                        tp_percent = self.trader.sl_tp_orders[symbol]['take_profit']
-                    else:
-                        # Calculate percentages from prices if stored values not available
-                        if pos_amt > 0:  # Long position
-                            sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
-                            tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
-                        else:  # Short position
-                            sl_percent = ((entry_price - sl_price) / entry_price * 100) if sl_price else 0
-                            tp_percent = ((entry_price - tp_price) / entry_price * 100) if tp_price else 0
+                    # Determine position direction
+                    direction = 'long' if pos_amt > 0 else 'short'
                     
-                    # Format display strings with proper rounding
-                    sl_display = f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else "N/A"
-                    tp_display = f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price else "N/A"
+                    # Calculate SL/TP percentages
+                    if direction == 'long':
+                        sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else None
+                        tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else None
+                    else:  # short
+                        sl_percent = ((entry_price - sl_price) / entry_price * 100) if sl_price else None
+                        tp_percent = ((entry_price - tp_price) / entry_price * 100) if tp_price else None
                     
+                    # Get stored SL/TP values if available
+                    stored_values = self.trader.sl_tp_orders.get(symbol, {})
+                    if stored_values:
+                        if sl_percent is None:
+                            sl_percent = stored_values.get('stop_loss', -2.0)
+                        if tp_percent is None:
+                            tp_percent = stored_values.get('take_profit', 5.0)
+                    
+                    # Format display strings
+                    sl_display = f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else f"{sl_percent:.1f}% (Not set)" if sl_percent else "Not set"
+                    tp_display = f"{tp_percent:.1f}% ({tp_price:.2f})" if tp_price else f"{tp_percent:.1f}% (Not set)" if tp_percent else "Not set"
+                    
+                    # Insert position into tree
                     self.positions_tree.insert('', 'end', values=(
                         symbol,
                         f"{pos_amt:.4f}",
@@ -829,6 +861,8 @@ class TradingGUI:
                     
         except Exception as e:
             self.log_message(f"Error updating positions: {str(e)}")
+            # Schedule retry after a short delay
+            self.root.after(5000, self.update_positions)
 
     def handle_position_click(self, event):
         """Handle clicks on the positions tree."""
@@ -1258,3 +1292,14 @@ class TradingGUI:
 
         except Exception as e:
             self.log_message(f"Error in auto trade execution: {str(e)}")
+
+    def schedule_updates(self):
+        """Schedule periodic updates for various components."""
+        # Update positions and price every 5 seconds
+        self.root.after(5000, self.update_positions_and_price)
+        
+        # Update exchange flow data every 5 seconds
+        self.root.after(5000, self.load_coinglass_data)
+        
+        # Schedule the next round of updates
+        self.root.after(5000, self.schedule_updates)
