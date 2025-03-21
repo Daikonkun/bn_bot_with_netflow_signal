@@ -299,113 +299,113 @@ class BinanceFuturesTrader:
     def place_stop_loss_take_profit(self, contract, entry_price, size, direction, sl_percent, tp_percent, leverage):
         """Place stop loss and take profit orders."""
         try:
-            max_retries = 5
+            # Get the actual position size from position info
+            positions = self.client.futures_position_information(symbol=contract)
+            position = next((pos for pos in positions if float(pos['positionAmt']) != 0), None)
+            if not position:
+                raise ValueError(f"No open position found for {contract}")
+            
+            actual_size = abs(float(position['positionAmt']))
+            if actual_size != abs(size):
+                self.log_message(f"Adjusting order size from {abs(size)} to {actual_size} to match position")
+                size = actual_size
+
+            # Ensure we have a valid entry price
+            max_retries = 3
             for attempt in range(max_retries):
                 if entry_price <= 0:
-                    self.log_message(f"Invalid entry_price for {contract}: {entry_price}. Retrying... (Attempt {attempt + 1}/{max_retries})")
-                    time.sleep(1)
-                    entry_price = float(self.client.futures_symbol_ticker(symbol=contract)['price'])
+                    self.log_message(f"Invalid entry price ({entry_price}), fetching current price... (Attempt {attempt + 1}/{max_retries})")
+                    try:
+                        entry_price = float(self.client.futures_symbol_ticker(symbol=contract)['price'])
+                        time.sleep(0.5)  # Small delay between retries
+                    except Exception as e:
+                        self.log_message(f"Error fetching price: {e}")
                 else:
                     break
+            
             if entry_price <= 0:
-                fallback_prices = {
-                    'BTCUSDT': 83000.00,
-                    'ETHUSDT': 4000.00,
-                    'XRPUSDT': 1.00,
-                }
-                fallback_price = fallback_prices.get(contract, 83000.00)
-                self.log_message(f"Failed to fetch valid entry_price for {contract} after {max_retries} retries. Using fallback price {fallback_price}")
-                entry_price = fallback_price
+                raise ValueError(f"Could not get valid entry price after {max_retries} attempts")
 
-            if size <= 0:
-                self.log_message(f"Invalid size for {contract}: {size}")
-                return False
-
-            # Adjust SL/TP prices for leverage (sl_percent and tp_percent are margin percentages)
-            if direction.lower() == 'long':
-                sl_price = entry_price * (1 + sl_percent / 100 / leverage)
-                tp_price = entry_price * (1 + tp_percent / 100 / leverage)
-            else:
-                sl_price = entry_price * (1 - sl_percent / 100 / leverage)
-                tp_price = entry_price * (1 - tp_percent / 100 / leverage)
-
-            symbol_info = self.client.futures_exchange_info()['symbols']
-            for s in symbol_info:
-                if s['symbol'] == contract:
-                    price_filter = next(filter(lambda x: x['filterType'] == 'PRICE_FILTER', s['filters']), None)
-                    if price_filter:
-                        min_price = float(price_filter['minPrice'])
-                        max_price = float(price_filter['maxPrice'])
-                        if sl_price < min_price or sl_price > max_price:
-                            raise ValueError(f"Stop Loss price {sl_price} is out of range for {contract} ({min_price}-{max_price})")
-                        if tp_price < min_price or tp_price > max_price:
-                            raise ValueError(f"Take Profit price {tp_price} is out of range for {contract} ({min_price}-{max_price})")
-                    break
-
-            price_precision = 1
-            try:
-                for s in symbol_info:
-                    if s['symbol'] == contract:
-                        price_precision = s['pricePrecision']
-                        break
-                self.log_message(f"Price precision for {contract}: {price_precision}")
-            except Exception as e:
-                self.log_message(f"Error fetching price precision for {contract}: {e}, using default precision 2")
-
-            sl_price = round(sl_price, price_precision)
-            tp_price = round(tp_price, price_precision)
-            self.log_message(f"Rounded SL/TP for {contract}: sl_price={sl_price}, tp_price={tp_price}")
-
-            # Place SL order
-            sl_order = self.client.futures_create_order(
-                symbol=contract,
-                side='SELL' if direction.lower() == 'long' else 'BUY',
-                type='STOP_MARKET',
-                stopPrice=str(sl_price),
-                closePosition=True,
-                quantity=str(abs(size))
-            )
-            sl_order_id = sl_order['orderId']
-            self.log_message(f"Placed Stop Loss for {contract} at {sl_price:.2f} with orderId {sl_order_id}")
-
-            # Place TP order
-            tp_order = self.client.futures_create_order(
-                symbol=contract,
-                side='SELL' if direction.lower() == 'long' else 'BUY',
-                type='TAKE_PROFIT_MARKET',
-                stopPrice=str(tp_price),
-                closePosition=True,
-                quantity=str(abs(size))
-            )
-            tp_order_id = tp_order['orderId']
-            self.log_message(f"Placed Take Profit for {contract} at {tp_price:.2f} with orderId {tp_order_id}")
-
+            # Store SL/TP values for this contract
+            if not hasattr(self, 'sl_tp_orders'):
+                self.sl_tp_orders = {}
             self.sl_tp_orders[contract] = {
-                'sl_order_id': sl_order_id,
-                'tp_order_id': tp_order_id,
-                'sl_percent': sl_percent,
-                'tp_percent': tp_percent,
-                'sl_price': sl_price,
-                'tp_price': tp_price,
-                'sl_status': 'open',
-                'tp_status': 'open',
-                'leverage': leverage  # Ensure leverage is stored
-            }
-            self.log_message(f"Placed SL/TP for {contract}. Monitoring status...")
-            return True
-        except Exception as e:
-            self.log_message(f"Error placing SL/TP for {contract}: {e}")
-            self.sl_tp_orders[contract] = {
-                'sl_order_id': None,
-                'tp_order_id': None,
-                'sl_percent': sl_percent,
-                'tp_percent': tp_percent,
-                'sl_price': None,
-                'tp_price': None,
-                'sl_status': 'error',
-                'tp_status': 'error',
+                'stop_loss': sl_percent,
+                'take_profit': tp_percent,
                 'leverage': leverage
             }
+
+            # Calculate SL/TP prices
+            if direction == 'long':
+                # For long positions:
+                # SL is below entry price (negative percentage)
+                # TP is above entry price (positive percentage)
+                sl_price = entry_price * (1 + (sl_percent / 100))  # sl_percent is negative
+                tp_price = entry_price * (1 + (tp_percent / 100))  # tp_percent is positive
+            else:
+                # For short positions:
+                # SL is above entry price (negative percentage)
+                # TP is below entry price (positive percentage)
+                sl_price = entry_price * (1 - (sl_percent / 100))  # sl_percent is negative
+                tp_price = entry_price * (1 - (tp_percent / 100))  # tp_percent is positive
+
+            # Round prices to appropriate precision
+            symbol_info = self.client.futures_exchange_info()['symbols']
+            price_precision = 2  # default precision
+            quantity_precision = 3  # default precision
+            for s in symbol_info:
+                if s['symbol'] == contract:
+                    price_precision = s['pricePrecision']
+                    quantity_precision = s['quantityPrecision']
+                    break
+            
+            sl_price = round(sl_price, price_precision)
+            tp_price = round(tp_price, price_precision)
+            size = round(size, quantity_precision)
+
+            # Log the calculations
+            self.log_message(f"Calculated values for {contract}:")
+            self.log_message(f"Entry: {entry_price}, Size: {size}")
+            self.log_message(f"SL: {sl_price} ({sl_percent}%), TP: {tp_price} ({tp_percent}%)")
+
+            # Cancel any existing SL/TP orders
+            open_orders = self.client.futures_get_open_orders(symbol=contract)
+            for order in open_orders:
+                if order['type'] in ['STOP_MARKET', 'TAKE_PROFIT_MARKET']:
+                    self.client.futures_cancel_order(
+                        symbol=contract,
+                        orderId=order['orderId']
+                    )
+
+            # Place stop loss order
+            sl_order = self.client.futures_create_order(
+                symbol=contract,
+                side='SELL' if direction == 'long' else 'BUY',
+                type='STOP_MARKET',
+                quantity=size,
+                stopPrice=sl_price,
+                reduceOnly=True
+            )
+
+            # Place take profit order
+            tp_order = self.client.futures_create_order(
+                symbol=contract,
+                side='SELL' if direction == 'long' else 'BUY',
+                type='TAKE_PROFIT_MARKET',
+                quantity=size,
+                stopPrice=tp_price,
+                reduceOnly=True
+            )
+
+            self.log_message(f"Successfully placed SL/TP orders for {contract}:")
+            self.log_message(f"SL order: {sl_order['orderId']}, price: {sl_price}, size: {size}")
+            self.log_message(f"TP order: {tp_order['orderId']}, price: {tp_price}, size: {size}")
+            return True
+        except Exception as e:
+            self.log_message(f"Error placing SL/TP orders: {e}")
+            # Clean up stored values on error
+            if hasattr(self, 'sl_tp_orders') and contract in self.sl_tp_orders:
+                del self.sl_tp_orders[contract]
             return False
 
     def cleanup(self):
@@ -419,3 +419,186 @@ class BinanceFuturesTrader:
                 self.log_message(f"Canceled order {order['orderId']} for {order['symbol']}")
         except Exception as e:
             self.log_message(f"Error during cleanup: {e}")
+
+    def calculate_rsi(self, klines, period=5):
+        """Calculate RSI for given klines data."""
+        try:
+            closes = [float(k[4]) for k in klines]  # Close prices
+            deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+            
+            gains = []
+            losses = []
+            for delta in deltas:
+                if delta > 0:
+                    gains.append(delta)
+                    losses.append(0)
+                else:
+                    gains.append(0)
+                    losses.append(abs(delta))
+            
+            avg_gain = sum(gains[-period:]) / period
+            avg_loss = sum(losses[-period:]) / period
+            
+            if avg_loss == 0:
+                return 100
+            
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs))
+            
+            return rsi
+        except Exception as e:
+            self.log_message(f"Error calculating RSI: {e}")
+            return None
+
+    def get_coinglass_flow_data(self):
+        """Get flow data from Coinglass API or local file."""
+        try:
+            # For now, we'll use a placeholder implementation
+            # In production, this should be connected to your Coinglass data source
+            return {
+                '5m': 0,  # 5-minute netflow
+                '1h': 0   # 1-hour netflow
+            }
+        except Exception as e:
+            self.log_message(f"Error fetching Coinglass flow data: {e}")
+            return None
+
+    def check_strategy_conditions(self, contract="BTCUSDT"):
+        """Check if strategy conditions are met for trading."""
+        try:
+            # Strategy parameters
+            rsi_period = 5
+            rsi_oversold = 40
+            rsi_overbought = 60
+            flow_threshold_5m = 100000
+            flow_threshold_1h = 500000
+            
+            # Get recent klines for RSI calculation
+            klines = self.client.futures_klines(
+                symbol=contract,
+                interval='5m',
+                limit=rsi_period + 1
+            )
+            
+            if not klines or len(klines) < rsi_period + 1:
+                self.log_message("Not enough klines data for RSI calculation")
+                return None
+            
+            # Calculate RSI
+            rsi = self.calculate_rsi(klines, rsi_period)
+            if rsi is None:
+                return None
+            
+            # Get flow data
+            flow_data = self.get_coinglass_flow_data()
+            if flow_data is None:
+                return None
+            
+            flow_5m = flow_data['5m']
+            flow_1h = flow_data['1h']
+            
+            # Check conditions
+            rsi_long = rsi < rsi_oversold
+            flow_long = (flow_5m < -flow_threshold_5m or flow_1h < -flow_threshold_1h)
+            long_conditions = rsi_long or flow_long
+            
+            rsi_short = rsi > rsi_overbought
+            flow_short = (flow_5m > flow_threshold_5m or flow_1h > flow_threshold_1h)
+            short_conditions = rsi_short or flow_short
+            
+            # Log conditions
+            self.log_message(f"\nStrategy Check for {contract}:")
+            self.log_message(f"RSI(5): {rsi:.1f}")
+            self.log_message(f"5m Flow: {flow_5m:,.0f}")
+            self.log_message(f"1h Flow: {flow_1h:,.0f}")
+            
+            if long_conditions:
+                return {
+                    'signal': 'long',
+                    'trigger': 'RSI' if rsi_long else 'Flow',
+                    'rsi': rsi,
+                    'flow_5m': flow_5m,
+                    'flow_1h': flow_1h
+                }
+            elif short_conditions:
+                return {
+                    'signal': 'short',
+                    'trigger': 'RSI' if rsi_short else 'Flow',
+                    'rsi': rsi,
+                    'flow_5m': flow_5m,
+                    'flow_1h': flow_1h
+                }
+            
+            return None
+            
+        except Exception as e:
+            self.log_message(f"Error checking strategy conditions: {e}")
+            return None
+
+    def execute_strategy(self, contract="BTCUSDT"):
+        """Execute the trading strategy."""
+        try:
+            # Check if we already have an open position
+            positions = self.get_open_positions()
+            has_position = any(pos['symbol'] == contract and float(pos['positionAmt']) != 0 for pos in positions)
+            
+            if has_position:
+                self.log_message(f"Already have an open position for {contract}")
+                return False
+            
+            # Check strategy conditions
+            signal = self.check_strategy_conditions(contract)
+            if not signal:
+                return False
+            
+            # Strategy parameters
+            params = {
+                'contract': contract,
+                'direction': signal['signal'],
+                'price': '0',  # Use market price
+                'leverage': '25',  # 25x leverage
+                'risk_percentage': 0.20,  # 20% risk per trade
+                'tif': 'GTC'
+            }
+            
+            # Execute the trade
+            success = self.execute_trade(params)
+            if not success:
+                return False
+            
+            # Get the entry price from the position
+            positions = self.get_open_positions()
+            position = next((pos for pos in positions if pos['symbol'] == contract), None)
+            if not position:
+                self.log_message(f"Failed to get position info for {contract}")
+                return False
+            
+            entry_price = float(position['entryPrice'])
+            position_size = float(position['positionAmt'])
+            
+            # Place stop loss and take profit orders
+            sl_percent = -5.0  # 5% stop loss
+            tp_percent = 5.0   # 5% take profit
+            self.place_stop_loss_take_profit(
+                contract=contract,
+                entry_price=entry_price,
+                size=abs(position_size),
+                direction=signal['signal'],
+                sl_percent=sl_percent,
+                tp_percent=tp_percent,
+                leverage=25
+            )
+            
+            self.log_message(f"\nTrade executed for {contract}:")
+            self.log_message(f"Direction: {signal['signal'].upper()}")
+            self.log_message(f"Trigger: {signal['trigger']}")
+            self.log_message(f"Entry Price: {entry_price}")
+            self.log_message(f"Position Size: {position_size}")
+            self.log_message(f"Stop Loss: {sl_percent}%")
+            self.log_message(f"Take Profit: {tp_percent}%")
+            
+            return True
+            
+        except Exception as e:
+            self.log_message(f"Error executing strategy: {e}")
+            return False

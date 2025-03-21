@@ -22,6 +22,10 @@ class TradingGUI:
         self.update_interval = 2000  # 2 seconds
         self.position_update_interval = 5000  # 5 seconds
         
+        # Create main container frame
+        self.main_container = ttk.Frame(self.root)
+        self.main_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
         # Initialize log frame first
         self.create_log_frame()
 
@@ -43,7 +47,7 @@ class TradingGUI:
         # Initialize Coinglass data with absolute path
         self.coinglass_data = None
         self.last_coinglass_update = None
-        self.coinglass_file = os.path.abspath(os.path.join(self.script_dir, "..", "coinglass", "btc_spot_netflow.csv"))
+        self.coinglass_file = os.path.abspath(os.path.join(self.script_dir, "..", "btc_spot_netflow.csv"))
 
         # Create other frames
         self.create_trade_frame()
@@ -132,12 +136,12 @@ class TradingGUI:
     def create_trade_frame(self):
         """Create the main trading interface frame."""
         # Create frames
-        trade_frame = ttk.LabelFrame(self.root, text="Trading Interface", padding="5 5 5 5")
-        trade_frame.pack(fill=tk.BOTH, expand=True, padx=5)
+        trade_frame = ttk.LabelFrame(self.main_container, text="Trading Interface", padding="5 5 5 5")
+        trade_frame.pack(fill=tk.BOTH, padx=5, pady=5)
 
         # Left frame for trade parameters
         left_frame = ttk.Frame(trade_frame)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, padx=5)
 
         # Right frame for market data and signals
         right_frame = ttk.Frame(trade_frame)
@@ -216,76 +220,217 @@ class TradingGUI:
         tp_entry = ttk.Entry(tp_frame, textvariable=self.tp_var)
         tp_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
-        # Market Data Display
-        market_frame = ttk.LabelFrame(right_frame, text="Market Data", padding="5 5 5 5")
-        market_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        # Market Data Display (more compact)
+        market_frame = ttk.LabelFrame(right_frame, text="Market Data", padding="2 2 2 2")
+        market_frame.pack(fill=tk.X, pady=1)
 
-        # Price display with larger font
-        self.price_label = ttk.Label(market_frame, text="Price: 0.00", font=('TkDefaultFont', 12, 'bold'))
-        self.price_label.pack(fill=tk.X, pady=2)
+        # Price and MA in same row
+        price_ma_frame = ttk.Frame(market_frame)
+        price_ma_frame.pack(fill=tk.X)
         
-        # MA display
-        ma_frame = ttk.Frame(market_frame)
-        ma_frame.pack(fill=tk.X, pady=2)
-        self.ma7_label = ttk.Label(ma_frame, text="MA7: 0.00")
-        self.ma7_label.pack(side=tk.LEFT, padx=5)
-        self.ma25_label = ttk.Label(ma_frame, text="MA25: 0.00")
-        self.ma25_label.pack(side=tk.LEFT, padx=5)
-
-        # Coinglass Data Display
-        coinglass_frame = ttk.LabelFrame(right_frame, text="Exchange Flow Data", padding="5 5 5 5")
-        coinglass_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.price_label = ttk.Label(price_ma_frame, text="Price: 0.00", font=('TkDefaultFont', 11, 'bold'))
+        self.price_label.pack(side=tk.LEFT, padx=2)
         
-        # Short-term flows
-        self.flow_5m_label = ttk.Label(coinglass_frame, text="5min Flow: 0")
-        self.flow_5m_label.pack(fill=tk.X, pady=2)
-        self.flow_15m_label = ttk.Label(coinglass_frame, text="15min Flow: 0")
-        self.flow_15m_label.pack(fill=tk.X, pady=2)
-        self.flow_30m_label = ttk.Label(coinglass_frame, text="30min Flow: 0")
-        self.flow_30m_label.pack(fill=tk.X, pady=2)
+        self.ma7_label = ttk.Label(price_ma_frame, text="MA7: 0.00")
+        self.ma7_label.pack(side=tk.LEFT, padx=2)
+        self.ma25_label = ttk.Label(price_ma_frame, text="MA25: 0.00")
+        self.ma25_label.pack(side=tk.LEFT, padx=2)
 
-        # Signal Display
-        signal_frame = ttk.LabelFrame(right_frame, text="Trading Signals", padding="5 5 5 5")
-        signal_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        self.signal_label = ttk.Label(signal_frame, text="Signal: NO SIGNAL", font=('TkDefaultFont', 12, 'bold'))
-        self.signal_label.pack(fill=tk.X, pady=5)
+        # Coinglass Data Display (more compact)
+        coinglass_frame = ttk.LabelFrame(right_frame, text="Exchange Flow Data", padding="2 2 2 2")
+        coinglass_frame.pack(fill=tk.X, pady=1)
+        
+        # All flows in one row
+        flow_frame = ttk.Frame(coinglass_frame)
+        flow_frame.pack(fill=tk.X)
+        
+        self.flow_5m_label = ttk.Label(flow_frame, text="5min: 0")
+        self.flow_5m_label.pack(side=tk.LEFT, padx=2)
+        self.flow_15m_label = ttk.Label(flow_frame, text="15min: 0")
+        self.flow_15m_label.pack(side=tk.LEFT, padx=2)
+        self.flow_30m_label = ttk.Label(flow_frame, text="30min: 0")
+        self.flow_30m_label.pack(side=tk.LEFT, padx=2)
 
-        # Signal History
-        history_frame = ttk.LabelFrame(right_frame, text="Signal History", padding="5 5 5 5")
-        history_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        self.signal_history_text = scrolledtext.ScrolledText(history_frame, height=6)
-        self.signal_history_text.pack(fill=tk.BOTH, expand=True)
+        # Signal Display (more compact)
+        signal_frame = ttk.LabelFrame(right_frame, text="Trading Signals", padding="2 2 2 2")
+        signal_frame.pack(fill=tk.X, pady=1)
+        self.signal_label = ttk.Label(signal_frame, text="Signal: NO SIGNAL", font=('TkDefaultFont', 11, 'bold'))
+        self.signal_label.pack(fill=tk.X, pady=1)
+
+        # Signal History (reduced height)
+        history_frame = ttk.LabelFrame(right_frame, text="Signal History", padding="2 2 2 2")
+        history_frame.pack(fill=tk.X, pady=1)
+        self.signal_history_text = scrolledtext.ScrolledText(history_frame, height=4)
+        self.signal_history_text.pack(fill=tk.BOTH)
 
         # Buttons
         button_frame = ttk.Frame(left_frame)
-        button_frame.pack(fill=tk.X, pady=10)
-        ttk.Button(button_frame, text="Execute Trade", command=self.execute_trade).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Close All", command=self.close_all_positions).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Reset Template", command=self.reset_to_template).pack(side=tk.LEFT, padx=5)
+        button_frame.pack(fill=tk.X, pady=2)
+        ttk.Button(button_frame, text="Execute Trade", command=self.execute_trade).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="Close All", command=self.close_all_positions).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="Reset Template", command=self.reset_to_template).pack(side=tk.LEFT, padx=2)
 
-        # Start price updates
-        self.update_market_price()
+        # Auto Trading Frame (compact with hover)
+        auto_frame = ttk.LabelFrame(left_frame, text="Automatic Trading", padding="2 2 2 2")
+        auto_frame.pack(fill=tk.X, pady=2)
+
+        # Auto trading controls frame
+        auto_controls = ttk.Frame(auto_frame)
+        auto_controls.pack(fill=tk.X)
+
+        # Auto trading toggle and status in one row
+        self.auto_trading = tk.BooleanVar(value=False)
+        self.auto_trading_btn = ttk.Checkbutton(
+            auto_controls,
+            text="Enable Auto Trading",
+            variable=self.auto_trading,
+            command=self.toggle_auto_trading
+        )
+        self.auto_trading_btn.pack(side=tk.LEFT, padx=2)
+        
+        self.auto_status_label = ttk.Label(auto_controls, text="Disabled", foreground="red")
+        self.auto_status_label.pack(side=tk.LEFT, padx=2)
+
+        # Compact strategy display with hover
+        strategy_summary = ttk.Label(auto_frame, 
+            text="Strategy: MA Cross + RSI + Flow (Hover for details)",
+            cursor="question_arrow"
+        )
+        strategy_summary.pack(fill=tk.X, pady=1)
+
+        # Create tooltip for strategy details
+        strategy_details = (
+            "Strategy Parameters:\n"
+            "• Leverage: 25x\n"
+            "• Risk per Trade: 20% of capital\n\n"
+            "Long Entry (any of):\n"
+            "• RSI(5) < 40\n"
+            "• 5m Netflow < -$100K\n"
+            "• 1h Netflow < -$500K\n\n"
+            "Short Entry (any of):\n"
+            "• RSI(5) > 60\n"
+            "• 5m Netflow > $100K\n"
+            "• 1h Netflow > $500K\n\n"
+            "Risk Management:\n"
+            "• Stop Loss: -5%\n"
+            "• Take Profit: 5%\n"
+            "• Timeframe: 5-minute candles"
+        )
+        
+        self.create_tooltip(strategy_summary, strategy_details)
+
+        # Add tooltips for each parameter
+        self.create_tooltip(contract_entry, 
+            "Trading pair (e.g., BTCUSDT). Currently supporting BTCUSDT only.")
+        
+        self.create_tooltip(price_entry, 
+            "Entry price (0 for market order). The bot uses market orders by default.")
+        
+        self.create_tooltip(leverage_entry, 
+            "Position leverage (25x). Higher leverage means higher risk and potential returns.")
+        
+        self.create_tooltip(risk_entry, 
+            "Risk per trade (20%). Percentage of account balance to risk on each trade.")
+        
+        self.create_tooltip(sl_entry, 
+            "Stop Loss (-5%). Will close position at a loss if price moves against you by this percentage.")
+        
+        self.create_tooltip(tp_entry, 
+            "Take Profit (5%). Will close position at a profit if price moves in your favor by this percentage.")
+        
+        self.create_tooltip(tif_menu, 
+            "Time In Force: GTC (Good Till Cancel) recommended for this strategy.")
+
+        # Add tooltips for market data
+        self.create_tooltip(self.price_label, 
+            "Current market price of the trading pair")
+        
+        self.create_tooltip(self.flow_5m_label, 
+            "5-minute net exchange flow. Long signal below -$100K, Short signal above $100K")
+        
+        self.create_tooltip(self.flow_15m_label, 
+            "1-hour net exchange flow. Long signal below -$500K, Short signal above $500K")
+
+        # Add RSI tooltip
+        self.create_tooltip(self.signal_label,
+            "Trading signal based on RSI(5) and exchange flow conditions.\n"
+            "RSI < 40 or flow conditions trigger long.\n"
+            "RSI > 60 or flow conditions trigger short.")
+
+        # Add strategy explanation tooltip to the trade frame
+        strategy_info = """Trading Strategy:
+- Entry Conditions:
+  * Long: RSI(5) < 40 OR 5m Flow < -$100K OR 1h Flow < -$500K
+  * Short: RSI(5) > 60 OR 5m Flow > $100K OR 1h Flow > $500K
+- Risk Management:
+  * Leverage: 25x
+  * Risk per trade: 20% of balance
+  * Take Profit: 5%
+  * Stop Loss: -5%
+- Timeframe: 5-minute candles"""
+        
+        self.create_tooltip(trade_frame, strategy_info)
+
+    def create_tooltip(self, widget, text):
+        """Create a tooltip for a given widget."""
+        tooltip = tk.Toplevel(widget)
+        tooltip.withdraw()
+        tooltip.wm_overrideredirect(True)
+        
+        label = ttk.Label(tooltip, text=text, justify=tk.LEFT,
+                         relief=tk.SOLID, borderwidth=1,
+                         background="#ffffe0", padding="3 3 3 3")
+        label.pack()
+        
+        def show_tooltip(event=None):
+            tooltip.deiconify()
+            x = widget.winfo_rootx() + widget.winfo_width()
+            y = widget.winfo_rooty()
+            tooltip.geometry(f"+{x}+{y}")
+        
+        def hide_tooltip(event=None):
+            tooltip.withdraw()
+        
+        widget.bind('<Enter>', show_tooltip)
+        widget.bind('<Leave>', hide_tooltip)
 
     def create_positions_frame(self):
-        positions_frame = ttk.LabelFrame(self.root, text="Open Positions & Holdings", padding=10)
-        positions_frame.pack(fill="x", padx=5, pady=5)  # Changed from fill="both" to fill="x"
+        """Create the positions frame with fixed height."""
+        positions_frame = ttk.LabelFrame(self.main_container, text="Open Positions & Holdings", padding="5 5 5 5")
+        positions_frame.pack(fill=tk.BOTH, padx=5, pady=5)
 
+        # Holdings label
         self.holdings_var = tk.StringVar(value="USDT Balance: Loading...")
-        ttk.Label(positions_frame, textvariable=self.holdings_var).grid(row=0, column=0, pady=5, sticky="ew")
+        holdings_label = ttk.Label(positions_frame, textvariable=self.holdings_var)
+        holdings_label.pack(fill=tk.X, pady=(0, 5))
 
+        # Create positions tree with fixed height
         columns = ('Contract', 'Size', 'Entry Price', 'Leverage', 'SL % (Price)', 'TP % (Price)', 'Edit', 'Action')
-        self.positions_tree = ttk.Treeview(positions_frame, columns=columns, show='headings', height=2)  # Set height=2 for 2 positions
-        for col in columns:
+        self.positions_tree = ttk.Treeview(positions_frame, columns=columns, show='headings', height=2)
+        
+        # Configure column widths
+        column_widths = {
+            'Contract': 100,
+            'Size': 100,
+            'Entry Price': 100,
+            'Leverage': 80,
+            'SL % (Price)': 150,
+            'TP % (Price)': 150,
+            'Edit': 50,
+            'Action': 50
+        }
+        
+        for col, width in zip(columns, column_widths.values()):
             self.positions_tree.heading(col, text=col)
-            self.positions_tree.column(col, width=150 if col in ['SL % (Price)', 'TP % (Price)'] else 100 if col not in ['Edit', 'Action'] else 50)
-        self.positions_tree.grid(row=1, column=0, sticky="ew", pady=(0, 5))
+            self.positions_tree.column(col, width=width)
+        
+        self.positions_tree.pack(fill=tk.X, pady=(0, 5))
 
+        # Button frame
         button_frame = ttk.Frame(positions_frame)
-        button_frame.grid(row=2, column=0, sticky="ew", pady=5)
+        button_frame.pack(fill=tk.X, pady=(0, 5))
         ttk.Button(button_frame, text="Refresh", command=self.update_positions_and_price).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Close All", command=self.close_all_positions).pack(side=tk.LEFT, padx=5)
-
-        positions_frame.grid_columnconfigure(0, weight=1)
 
     def create_log_frame(self):
         """Create the log frame with collapsible functionality."""
@@ -293,8 +438,8 @@ class TradingGUI:
         self.log_frame_expanded = False
         
         # Create a container frame for the log
-        self.log_container = ttk.Frame(self.root)
-        self.log_container.pack(fill="x", padx=5, pady=5)
+        self.log_container = ttk.Frame(self.main_container)
+        self.log_container.pack(fill=tk.X, pady=5)
 
         # Create expand/collapse button
         self.log_toggle_btn = ttk.Button(
@@ -303,12 +448,12 @@ class TradingGUI:
             command=self.toggle_log_frame,
             style='Toolbutton'
         )
-        self.log_toggle_btn.pack(fill="x")
+        self.log_toggle_btn.pack(fill=tk.X)
 
         # Create the actual log frame (initially hidden)
-        self.log_frame = ttk.LabelFrame(self.log_container, text="Log", padding=10)
-        self.log_text = scrolledtext.ScrolledText(self.log_frame, height=10, wrap=tk.WORD)
-        self.log_text.pack(fill="both", expand=True)
+        self.log_frame = ttk.LabelFrame(self.log_container, text="Log", padding="5 5 5 5")
+        self.log_text = scrolledtext.ScrolledText(self.log_frame, height=8)  # Reduced height
+        self.log_text.pack(fill=tk.BOTH, expand=True)
         self.log_text.config(state='disabled')
 
     def toggle_log_frame(self):
@@ -413,22 +558,65 @@ class TradingGUI:
         try:
             if os.path.exists(self.coinglass_file):
                 df = pd.read_csv(self.coinglass_file)
+                if df.empty:
+                    self.log_message("Warning: Coinglass data file is empty")
+                    return None
+                    
                 df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="%d %b %Y, %H:%M")
                 latest_row = df.iloc[0]
+                
+                # Extract flow values and ensure they are numeric
+                flow_5m = float(latest_row['5m'])
+                flow_15m = float(latest_row['15m'])
+                flow_30m = float(latest_row['30m'])
+                
                 self.coinglass_data = {
-                    '5m': latest_row['5min'],
-                    '15m': latest_row['15min'],
-                    '30m': latest_row['30min']
+                    '5m': flow_5m,
+                    '15m': flow_15m,
+                    '30m': flow_30m
                 }
+                
+                self.log_message(f"Loaded Coinglass data - 5m: {flow_5m:,.0f}, 15m: {flow_15m:,.0f}, 30m: {flow_30m:,.0f}")
                 self.last_coinglass_update = current_time
+                
+                # Update flow labels immediately
+                self.root.after_idle(lambda: self.update_flow_labels(self.coinglass_data))
+                
                 return self.coinglass_data
+            else:
+                self.log_message(f"Warning: Coinglass data file not found at {self.coinglass_file}")
             return None
         except Exception as e:
             # Only log Coinglass errors once every 30 seconds to prevent spam
             if not hasattr(self, 'last_coinglass_error') or current_time - self.last_coinglass_error > 30:
-                self.log_message(f"Warning: Coinglass data file not found or invalid")
+                self.log_message(f"Error loading Coinglass data: {str(e)}")
                 self.last_coinglass_error = current_time
             return None
+
+    def update_flow_labels(self, flow_data):
+        """Update Exchange Flow Data labels."""
+        if flow_data is None:
+            return
+            
+        try:
+            flow_5m = float(flow_data['5m'])
+            flow_15m = float(flow_data['15m'])
+            flow_30m = float(flow_data['30m'])
+            
+            self.flow_5m_label.config(
+                text=f"5min Flow: {flow_5m:,.0f}",
+                foreground="green" if flow_5m < 0 else "red"
+            )
+            self.flow_15m_label.config(
+                text=f"15min Flow: {flow_15m:,.0f}",
+                foreground="green" if flow_15m < 0 else "red"
+            )
+            self.flow_30m_label.config(
+                text=f"30min Flow: {flow_30m:,.0f}",
+                foreground="green" if flow_30m < 0 else "red"
+            )
+        except Exception as e:
+            self.log_message(f"Error updating flow labels: {str(e)}")
 
     def calculate_rsi(self, closes, periods=14):
         """Calculate RSI using Binance's method."""
@@ -471,72 +659,63 @@ class TradingGUI:
             if None in (price, ma7, ma25):
                 return "NO SIGNAL"
 
-            # Load latest Coinglass data
-            coinglass = self.load_coinglass_data()
-            if coinglass is None:
-                return "NO SIGNAL"
-
-            # Get klines data for RSI calculation
+            # Get klines data for MA and RSI calculations
             contract = self.contract_var.get()
             klines = self.trader.client.futures_klines(
                 symbol=contract,
                 interval='5m',
-                limit=50  # Get more data for accurate RSI calculation
+                limit=100  # Get more data for accurate calculations
             )
             
             if not klines:
                 return "NO SIGNAL"
 
-            # Calculate RSI
+            # Calculate all required indicators
             closes = pd.Series([float(k[4]) for k in klines])
-            rsi = self.calculate_rsi(closes, periods=14)
-            if rsi is None:
-                return "NO SIGNAL"
+            current_price = closes.iloc[-1]
             
-            current_rsi = rsi.iloc[-1]
+            # Calculate moving averages
+            ma5 = closes.rolling(window=5).mean().iloc[-1]
+            ma20 = closes.rolling(window=20).mean().iloc[-1]
+            ma50 = closes.rolling(window=50).mean().iloc[-1]
+            
+            # Calculate RSI
+            rsi = self.calculate_rsi(closes).iloc[-1]
             
             # Get Coinglass flow data
-            flow_5m = float(coinglass['5m'])
-            
-            # Calculate 1-hour netflow from Coinglass data
-            df = pd.read_csv(self.coinglass_file)
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format="%d %b %Y, %H:%M")
-            df = df.sort_values('Timestamp', ascending=False)
-            flow_1h = self.calculate_1h_netflow(df)
-            
-            if flow_1h is None:
-                return "NO SIGNAL"
+            coinglass_data = self.load_coinglass_data()
+            if coinglass_data:
+                flow_5m = coinglass_data.get('5m', 0)
+            else:
+                flow_5m = 0
 
             # Log current indicators
             self.log_message(
-                f"Signal Indicators - RSI: {current_rsi:.2f}, "
-                f"MA7: {ma7:.2f}, MA25: {ma25:.2f}, "
-                f"5m Flow: {flow_5m:,.0f}, 1h Flow: {flow_1h:,.0f}"
+                f"Signal Indicators - Price: {current_price:.2f}, MA5: {ma5:.2f}, "
+                f"MA20: {ma20:.2f}, MA50: {ma50:.2f}, RSI: {rsi:.1f}, "
+                f"Flow 5m: {flow_5m:,.0f}"
             )
 
-            # Check for MA crossover
-            bullish_trend = ma7 > ma25
-            bearish_trend = ma7 < ma25
+            # Long signal conditions (exactly matching auto trading strategy)
+            long_conditions = (
+                ma5 > ma20 and
+                rsi < 20 and
+                flow_5m < -500000 and
+                current_price > ma50
+            )
 
-            # Define flow thresholds
-            FLOW_5M_THRESHOLD = 1000000  # 1M USD
-            FLOW_1H_THRESHOLD = 5000000  # 5M USD
+            # Short signal conditions (exactly matching auto trading strategy)
+            short_conditions = (
+                ma5 < ma20 and
+                rsi > 80 and
+                flow_5m > 500000 and
+                current_price < ma50
+            )
 
-            # BUY Signal conditions
-            if bullish_trend:
-                # Check confirming signals (RSI oversold OR significant outflow)
-                if (current_rsi < 30 or 
-                    flow_5m < -FLOW_5M_THRESHOLD or 
-                    flow_1h < -FLOW_1H_THRESHOLD):
-                    return "BUY"
-
-            # SELL Signal conditions
-            elif bearish_trend:
-                # Check confirming signals (RSI overbought OR significant inflow)
-                if (current_rsi > 70 or 
-                    flow_5m > FLOW_5M_THRESHOLD or 
-                    flow_1h > FLOW_1H_THRESHOLD):
-                    return "SELL"
+            if long_conditions:
+                return "BUY"
+            elif short_conditions:
+                return "SELL"
 
             return "NO SIGNAL"
 
@@ -580,7 +759,6 @@ class TradingGUI:
         """Update positions with timeout handling."""
         try:
             # Get positions and account info with timeout
-            positions = self.trader.client.futures_account_balance(timeout=5)
             account_info = self.trader.client.futures_account(timeout=5)
             position_info = self.trader.client.futures_position_information(timeout=5)
             open_orders = self.trader.client.futures_get_open_orders(timeout=5)
@@ -590,11 +768,11 @@ class TradingGUI:
                 self.positions_tree.delete(item)
             
             # Update balance display
-            if positions:
-                usdt_balance = next((float(bal['balance']) for bal in positions if bal['asset'] == 'USDT'), 0)
-                usdt_available = next((float(bal['availableBalance']) for bal in positions if bal['asset'] == 'USDT'), 0)
-                unrealized_pnl = float(account_info.get('totalUnrealizedProfit', 0))
-                balance_text = f"USDT Balance: {usdt_balance:.2f} (Available: {usdt_available:.2f}) | Unrealized P&L: {unrealized_pnl:.2f}"
+            if account_info:
+                total_wallet_balance = float(account_info.get('totalWalletBalance', 0))
+                total_unrealized_profit = float(account_info.get('totalUnrealizedProfit', 0))
+                available_balance = float(account_info.get('availableBalance', 0))
+                balance_text = f"USDT Balance: {total_wallet_balance:.2f} (Available: {available_balance:.2f}) | Unrealized P&L: {total_unrealized_profit:.2f}"
                 self.holdings_var.set(balance_text)
             
             # Update positions
@@ -604,29 +782,32 @@ class TradingGUI:
                     symbol = position['symbol']
                     entry_price = float(position.get('entryPrice', 0))
                     mark_price = float(position.get('markPrice', 0))
-                    
-                    # Get leverage directly from position info
-                    leverage = int(float(position.get('leverage', 25)))  # Default to 25 if not found
-                    
-                    unrealized_pnl = float(position.get('unRealizedProfit', 0))
+                    leverage = int(float(position.get('leverage', 10)))
                     
                     # Find SL/TP orders for this position
                     sl_order = next((order for order in open_orders 
-                                   if order['symbol'] == symbol and order['type'] == 'STOP_MARKET'), None)
+                                   if order['symbol'] == symbol 
+                                   and order['type'] == 'STOP_MARKET'), None)
                     tp_order = next((order for order in open_orders 
-                                   if order['symbol'] == symbol and order['type'] == 'TAKE_PROFIT_MARKET'), None)
+                                   if order['symbol'] == symbol 
+                                   and order['type'] == 'TAKE_PROFIT_MARKET'), None)
                     
-                    # Calculate SL/TP percentages and prices
+                    # Get SL/TP prices
                     sl_price = float(sl_order['stopPrice']) if sl_order else 0
                     tp_price = float(tp_order['stopPrice']) if tp_order else 0
                     
-                    # Calculate percentages based on position direction
-                    if pos_amt > 0:  # Long position
-                        sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
-                        tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
-                    else:  # Short position
-                        sl_percent = -((sl_price - entry_price) / entry_price * 100) if sl_price else 0  # Invert for shorts
-                        tp_percent = -((tp_price - entry_price) / entry_price * 100) if tp_price else 0  # Invert for shorts
+                    # Get the actual SL/TP percentages from trader's sl_tp_orders
+                    if hasattr(self.trader, 'sl_tp_orders') and symbol in self.trader.sl_tp_orders:
+                        sl_percent = self.trader.sl_tp_orders[symbol]['stop_loss']
+                        tp_percent = self.trader.sl_tp_orders[symbol]['take_profit']
+                    else:
+                        # Calculate percentages from prices if stored values not available
+                        if pos_amt > 0:  # Long position
+                            sl_percent = ((sl_price - entry_price) / entry_price * 100) if sl_price else 0
+                            tp_percent = ((tp_price - entry_price) / entry_price * 100) if tp_price else 0
+                        else:  # Short position
+                            sl_percent = ((entry_price - sl_price) / entry_price * 100) if sl_price else 0
+                            tp_percent = ((entry_price - tp_price) / entry_price * 100) if tp_price else 0
                     
                     # Format display strings with proper rounding
                     sl_display = f"{sl_percent:.1f}% ({sl_price:.2f})" if sl_price else "N/A"
@@ -741,10 +922,28 @@ class TradingGUI:
         """Close a single position."""
         try:
             self.log_message(f"Closing position: {symbol}, Size: {size}")
+            
+            # First cancel any existing SL/TP orders
+            try:
+                open_orders = self.trader.client.futures_get_open_orders(symbol=symbol)
+                for order in open_orders:
+                    if order['type'] in ['STOP_MARKET', 'TAKE_PROFIT_MARKET']:
+                        self.trader.client.futures_cancel_order(
+                            symbol=symbol,
+                            orderId=order['orderId']
+                        )
+                        self.log_message(f"Cancelled {order['type']} order for {symbol}")
+            except Exception as e:
+                self.log_message(f"Error cancelling SL/TP orders: {str(e)}")
+            
+            # Then close the position
             success = self.trader.close_position(contract=symbol, size=size, price='0', tif='IOC')
             
             if success:
                 self.log_message(f"Successfully closed position: {symbol}")
+                # Remove the symbol from sl_tp_orders if it exists
+                if hasattr(self.trader, 'sl_tp_orders') and symbol in self.trader.sl_tp_orders:
+                    del self.trader.sl_tp_orders[symbol]
             else:
                 self.log_message(f"Failed to close position: {symbol}")
                 
@@ -801,25 +1000,8 @@ class TradingGUI:
                 )
                 self.update_signal_history(signal, current_rsi)
                 
-                # Update Coinglass data if available
-                coinglass = self.load_coinglass_data()
-                if coinglass is not None:
-                    flow_5m = float(coinglass['5m'])
-                    flow_15m = float(coinglass['15m'])
-                    flow_30m = float(coinglass['30m'])
-                    
-                    self.flow_5m_label.config(
-                        text=f"5min Flow: {flow_5m:,.0f}",
-                        foreground="green" if flow_5m < 0 else "red"
-                    )
-                    self.flow_15m_label.config(
-                        text=f"15min Flow: {flow_15m:,.0f}",
-                        foreground="green" if flow_15m < 0 else "red"
-                    )
-                    self.flow_30m_label.config(
-                        text=f"30min Flow: {flow_30m:,.0f}",
-                        foreground="green" if flow_30m < 0 else "red"
-                    )
+                # Load and update Coinglass data
+                self.load_coinglass_data()
             
             # Schedule GUI updates to run in the main thread
             self.root.after_idle(update_gui)
@@ -877,40 +1059,39 @@ class TradingGUI:
             self.log_message("Trade validation failed")
             return
 
-        # Override TP/SL with fixed values
-        params['stop_loss'] = -10.0  # 10% stop loss
-        params['take_profit'] = 5.0   # 5% take profit
+        # Use the SL/TP values from the interface
+        params['stop_loss'] = float(self.sl_var.get())
+        params['take_profit'] = float(self.tp_var.get())
         
-        self.log_message(f"Executing trade with fixed TP/SL: TP={params['take_profit']}%, SL={params['stop_loss']}%")
+        self.log_message(f"Executing trade with TP={params['take_profit']}%, SL={params['stop_loss']}%")
         success = self.trader.execute_trade(params)
         
         if success:
             contract = params['contract']
             direction = params['direction']
-            entry_price = float(params['price']) if params['price'] != '0' else float(self.trader.client.futures_symbol_ticker(symbol=contract)['price'])
             size = self.trader.calculate_position_size(params)
             
             if size <= 0:
                 self.log_message(f"Invalid position size: {size}")
                 return
 
-            # Verify position exists
+            # Get the actual entry price from the position
             positions = self.trader.get_open_positions()
             position = next((pos for pos in positions if pos['symbol'] == contract and float(pos['positionAmt']) != 0), None)
             if not position:
                 self.log_message(f"No open position found for {contract} after trade execution")
                 return
 
+            entry_price = float(position['entryPrice'])
             leverage = float(params['leverage'])
             
-            # Place SL/TP orders
+            # Place SL/TP orders with the actual entry price
             try:
                 success = self.trader.place_stop_loss_take_profit(
                     contract, entry_price, size, direction, 
                     params['stop_loss'], params['take_profit'], leverage
                 )
                 if success:
-                    self.trader.sl_tp_orders[contract]['leverage'] = leverage
                     self.log_message(f"Successfully executed trade with TP={params['take_profit']}%, SL={params['stop_loss']}%")
                     
                     # Schedule position close after 1 hour
@@ -954,3 +1135,126 @@ class TradingGUI:
         else:
             self.log_message("Failed to close some or all positions")
         self.update_positions_and_price()
+
+    def toggle_auto_trading(self):
+        """Toggle automatic trading mode."""
+        if self.auto_trading.get():
+            self.auto_status_label.config(text="Auto Trading: Enabled", foreground="green")
+            self.log_message("Automatic trading enabled")
+            # Set default parameters for auto trading
+            self.contract_var.set("BTCUSDT")
+            self.leverage_var.set("10")
+            self.risk_var.set("10.0")
+            self.sl_var.set("-5.0")
+            self.tp_var.set("2.5")
+            # Start auto trading monitoring
+            self.check_auto_trading_conditions()
+        else:
+            self.auto_status_label.config(text="Auto Trading: Disabled", foreground="red")
+            self.log_message("Automatic trading disabled")
+
+    def check_auto_trading_conditions(self):
+        """Check conditions for automatic trading."""
+        if not self.auto_trading.get():
+            return
+
+        try:
+            contract = self.contract_var.get()
+            
+            # Get klines data for MA calculations
+            klines = self.trader.client.futures_klines(
+                symbol=contract,
+                interval='5m',
+                limit=100
+            )
+            
+            if not klines:
+                return
+
+            closes = pd.Series([float(k[4]) for k in klines])
+            current_price = closes.iloc[-1]
+            
+            # Calculate moving averages
+            ma5 = closes.rolling(window=5).mean().iloc[-1]
+            ma20 = closes.rolling(window=20).mean().iloc[-1]
+            ma50 = closes.rolling(window=50).mean().iloc[-1]
+            
+            # Calculate RSI
+            rsi = self.calculate_rsi(closes).iloc[-1]
+            
+            # Get Coinglass flow data
+            coinglass_data = self.load_coinglass_data()
+            if coinglass_data:
+                flow_5m = coinglass_data.get('5m', 0)
+            else:
+                flow_5m = 0
+
+            # Check for open positions
+            positions = self.trader.get_open_positions()
+            has_open_position = any(
+                float(pos['positionAmt']) != 0 
+                for pos in positions 
+                if pos['symbol'] == contract
+            )
+
+            if not has_open_position:
+                # Long entry conditions
+                long_conditions = (
+                    ma5 > ma20 and
+                    rsi < 20 and
+                    flow_5m < -500000 and
+                    current_price > ma50
+                )
+
+                # Short entry conditions
+                short_conditions = (
+                    ma5 < ma20 and
+                    rsi > 80 and
+                    flow_5m > 500000 and
+                    current_price < ma50
+                )
+
+                if long_conditions:
+                    self.direction_var.set("long")
+                    self.execute_auto_trade()
+                elif short_conditions:
+                    self.direction_var.set("short")
+                    self.execute_auto_trade()
+
+            self.log_message(
+                f"Auto Check - Price: {current_price:.2f}, MA5: {ma5:.2f}, "
+                f"MA20: {ma20:.2f}, MA50: {ma50:.2f}, RSI: {rsi:.1f}, "
+                f"Flow 5m: {flow_5m:,.0f}"
+            )
+
+        except Exception as e:
+            self.log_message(f"Error in auto trading check: {str(e)}")
+        finally:
+            # Schedule next check in 5 seconds if auto trading is still enabled
+            if self.auto_trading.get():
+                self.root.after(5000, self.check_auto_trading_conditions)
+
+    def execute_auto_trade(self):
+        """Execute trade with automatic parameters."""
+        try:
+            params = {
+                'contract': self.contract_var.get(),
+                'direction': self.direction_var.get(),
+                'price': '0',
+                'tif': 'IOC',
+                'leverage': float(self.leverage_var.get()),
+                'risk_percentage': float(self.risk_var.get()),
+                'stop_loss': float(self.sl_var.get()),
+                'take_profit': float(self.tp_var.get())
+            }
+
+            self.log_message(f"Auto Trading - Executing {params['direction']} trade on {params['contract']}")
+            success = self.trader.execute_trade(params)
+
+            if success:
+                self.log_message("Auto Trading - Trade executed successfully")
+            else:
+                self.log_message("Auto Trading - Trade execution failed")
+
+        except Exception as e:
+            self.log_message(f"Error in auto trade execution: {str(e)}")
